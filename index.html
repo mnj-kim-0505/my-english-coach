@@ -872,8 +872,6 @@ function renderResult() {
     <h1>결과 · ${cfg.label.split(' ')[0]}</h1>
     <div class="card">
       <div class="rowb"><b style="font-size:22px">${sum} / ${max}</b><span class="badge">채점 신뢰도 약 ${res.confidence_pct}%</span></div>
-      <p style="margin:8px 0 0">${esc(res.overall_ko)}</p>
-      <p class="sub" style="margin:8px 0 0">※ 녹음이 아닌 인식된 텍스트와 AI의 발음 메모를 바탕으로 한 예상 점수예요. 실제 ETS 채점과는 차이가 있을 수 있어요.</p>
     </div>
     ${res.items.map((it, i) => resultItem(it, answers[i] || {}, set.items[i], i, type)).join('')}
     ${res.priorities_ko.length ? `<h2>선생님 핵심 요약</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
