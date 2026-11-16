@@ -84,6 +84,13 @@ input[type=range]{width:100%}
 .badge{display:inline-block;border-radius:6px;padding:1px 8px;font-weight:500;font-size:12px;background:var(--soft);color:var(--ink)}
 .badge.hi{background:var(--okbg);color:var(--ok)}
 .badge.lo{background:var(--badbg);color:var(--bad)}
+.seg{display:flex;gap:8px;margin-bottom:10px}
+.seg button{flex:1;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:8px;padding:9px 0;font:inherit;font-size:13px}
+.seg button.on{color:var(--ink);border-color:#555}
+.kohide{filter:blur(6px);cursor:pointer}
+.nf input{width:100%;box-sizing:border-box;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;margin-bottom:8px}
+#selBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom));z-index:20;max-width:92vw}
+#selBar button{background:#2a2a2a;color:var(--ink);border:1px solid #555;border-radius:999px;padding:9px 16px;font:inherit;font-size:13px;box-shadow:0 2px 10px #000a;max-width:92vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .quote{border-left:3px solid var(--line);padding:2px 10px;color:var(--ink);margin:6px 0;white-space:pre-wrap}
 ul.tight{margin:4px 0 8px;padding-left:20px}
 ul.tight li{margin:2px 0}
@@ -106,10 +113,11 @@ label.tg{display:flex;justify-content:space-between;align-items:center;gap:10px;
   <nav id="tabs">
     <button data-tab="talk">회화</button>
     <button data-tab="toeic">토스</button>
-    <button data-tab="log">기록</button>
+    <button data-tab="log">노트</button>
     <button data-tab="settings">설정</button>
   </nav>
 </div>
+<div id="selBar" class="hidden"></div>
 <div id="toast"></div>
 <div id="login" class="modal hidden">
   <div class="card">
@@ -343,15 +351,38 @@ function addHistory(entry) {
   h.unshift({ ...entry, date: new Date().toISOString() });
   store.set('ec_history', h.slice(0, 100));
 }
-const phrases = () => store.get('ec_phrases', []);
-function addPhrases(list) {
-  const cur = phrases();
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const phrases = () => {
+  const l = store.get('ec_phrases', []);
+  let ch = false;
+  for (const x of l) if (!x.id) { x.id = uid(); ch = true; }
+  if (ch) store.set('ec_phrases', l);
+  return l;
+};
+function addPhrases(list, context) {
+  const cur = phrases(), added = [];
   for (const p of list || []) {
     if (!p || !p.en || !p.en.trim()) continue;
     if (cur.some((x) => x.en.toLowerCase() === p.en.trim().toLowerCase())) continue;
-    cur.unshift({ en: p.en.trim(), ko: (p.ko || '').trim(), date: new Date().toISOString() });
+    const item = { id: uid(), en: p.en.trim(), ko: (p.ko || '').trim(), ex: (p.ex || '').trim(), date: new Date().toISOString() };
+    cur.unshift(item);
+    added.push(item);
   }
-  store.set('ec_phrases', cur.slice(0, 300));
+  store.set('ec_phrases', cur.slice(0, 500));
+  for (const it of added) if (!it.ko) fillPhrase(it.id, it.en, context || '');
+  return added.length;
+}
+async function fillPhrase(id, text, context) {
+  try {
+    const r = await api('/api/claude', { task: 'define', text, context });
+    const l = store.get('ec_phrases', []);
+    const x = l.find((v) => v.id === id);
+    if (!x) return;
+    if (!x.ko) x.ko = r.ko;
+    if (!x.ex) x.ex = r.ex;
+    store.set('ec_phrases', l);
+    if (tab === 'log' && notes.sub === 'expr') renderLog();
+  } catch {}
 }
 
 const MAX_CONVS = 10;
@@ -707,12 +738,13 @@ function renderToeic() {
   if (t.phase === 'loading') { view.innerHTML = `<div class="card center"><span class="spin"></span><p>문제를 만드는 중…</p></div>`; return; }
   if (t.phase === 'intro') {
     const s = t.sess, cfg = s.cfg;
+    const lims = s.limits || cfg.items.slice(0, s.set.items.length);
     view.innerHTML = `
       <h1>${cfg.label}</h1>
       <div class="card"><b>${esc(s.set.title)}</b>
-        <p class="sub" style="margin:6px 0 0">${cfg.items.length}문항 · ${cfg.items.map((i) => (i.prep ? `준비 ${i.prep}초/` : '') + `답변 ${i.resp}초`).join(' → ')}${cfg.reading ? ` · 자료 읽기 ${cfg.reading}초` : ''}</p>
+        <p class="sub" style="margin:6px 0 0">${lims.length}문항 · ${lims.map((i) => (i.prep ? `준비 ${i.prep}초/` : '') + `답변 ${i.resp}초`).join(' → ')}${cfg.reading ? ` · 자료 읽기 ${cfg.reading}초` : ''}</p>
         <p class="sub" style="margin:6px 0 0">시작하면 마이크 권한을 물어볼 수 있어요. 비프음이 울리면 말하세요.</p></div>
-      ${s.type === 'read_aloud'
+      ${s.type === 'read_aloud' && !s.limits
         ? `<button class="btn" data-act="toeicGo" data-n="1">1문제만 연습 (피드백 바로 보기)</button><div style="height:8px"></div><button class="btn sec" data-act="toeicGo" data-n="2">2문제 모두 (실전)</button>`
         : `<button class="btn" data-act="toeicGo">시작</button>`}
       <div style="height:8px"></div><button class="btn ghost" data-act="toeicHome">취소</button>`;
@@ -812,6 +844,33 @@ async function toeicStart(type) {
   }
   if (tab === 'toeic') renderToeic();
 }
+function saveQ(i) {
+  const r = toeic.result;
+  if (!r) return;
+  const q = r.set.items[i], a = r.answers[i] || {}, it = r.res.items[i];
+  if (!q || !it) return;
+  const list = store.get('ec_qs', []);
+  const key = r.type + '|' + q.text;
+  if (list.some((x) => x.key === key)) { toast('이미 저장돼 있어요'); return; }
+  list.unshift({
+    id: uid(), key, qi: i, date: new Date().toISOString(), type: r.type,
+    label: TOEIC_TYPES[r.type].label.split(' ')[0] + ' · ' + (i + 1) + '번',
+    lim: (r.limits && r.limits[i]) || TOEIC_TYPES[r.type].items[i],
+    title: r.set.title || '', context: r.set.context || '', material: r.set.material || '',
+    q: { text: q.text },
+    a: { transcript: a.transcript || '', duration_sec: a.duration_sec, limit_sec: a.limit_sec, pronunciation_issues: a.pronunciation_issues || [], delivery_ko: a.delivery_ko || '', reference_diff: a.reference_diff || [], error: a.error },
+    it,
+  });
+  store.set('ec_qs', list.slice(0, 60));
+  toast('저장했어요. 노트 탭에서 다시 풀 수 있어요');
+}
+function startRedo(id) {
+  const x = qs().find((v) => v.id === id);
+  if (!x) return;
+  const s = { type: x.type, cfg: TOEIC_TYPES[x.type], set: { title: x.title || x.label, context: x.context, material: x.material, items: [{ text: x.q.text }] }, cancelled: false, skip: null, stopRec: null, answers: [], limits: [x.lim] };
+  toeic.sess = s; toeic.phase = 'intro'; toeic.result = null;
+  go('toeic');
+}
 function abortToeic() {
   const s = toeic.sess;
   if (s) { s.cancelled = true; if (s.skip) s.skip(); if (s.stopRec) s.stopRec(); }
@@ -829,7 +888,7 @@ async function toeicGo(n) {
     if (s.type === 'info') { setRun('reading', 0); await countdown(s, cfg.reading); checkCancel(s); }
     if (s.type === 'solution') { setRun('listen', 0); await TTS.speak(set.material); checkCancel(s); }
     for (let i = 0; i < set.items.length; i++) {
-      const item = set.items[i], lim = cfg.items[i];
+      const item = set.items[i], lim = (s.limits && s.limits[i]) || cfg.items[i];
       setRun('q', i);
       if (cfg.speakPrompt) { await TTS.speak(item.text); checkCancel(s); }
       if (lim.prep > 0) { setRun('prep', i); await countdown(s, lim.prep); checkCancel(s); }
@@ -855,7 +914,7 @@ async function toeicGo(n) {
       set: { context: set.context, material: set.material, items: set.items },
       answers: answers.map((a) => ({ speech_detected: a.speech_detected, transcript: a.transcript, duration_sec: a.duration_sec, limit_sec: a.limit_sec, delivery: { pronunciation_issues: a.pronunciation_issues, delivery_ko: a.delivery_ko, reference_diff: a.reference_diff } })),
     });
-    toeic.result = { type: s.type, set, answers, res };
+    toeic.result = { type: s.type, set, answers, res, limits: s.limits || cfg.items.slice(0, set.items.length) };
     const sum = res.items.reduce((a, b) => a + b.score, 0), max = res.items.reduce((a, b) => a + b.max, 0);
     addHistory({ kind: 'toeic', type: s.type, label: s.cfg.label, sum, max, confidence: res.confidence_pct });
     toeic.phase = 'result';
@@ -898,7 +957,7 @@ function speechMarked(text, issues) {
   }
   return out + esc(text.slice(pos));
 }
-function resultItem(it, a, q, i, type) {
+function resultItem(it, a, q, i, type, saved) {
   const ratio = it.score / it.max;
   const cls = ratio >= 0.8 ? 'hi' : ratio <= 0.4 ? 'lo' : '';
   const words = (a.transcript || '').trim() ? a.transcript.trim().split(/\s+/).length : 0;
@@ -907,8 +966,8 @@ function resultItem(it, a, q, i, type) {
   const isRead = type === 'read_aloud';
   const mks = isRead ? [] : (it.marks || []);
   const sayBtn = (t) => `<button class="mini" data-act="say" data-text="${esc(t)}">듣기</button>`;
-  const issueLis = d.map((p) => `<li><span class="mk ${p.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(p.word)}</span> – ${esc(p.issue_ko)} ${sayBtn(p.word)}</li>`).join('');
-  const markLis = mks.map((m) => `<li><span class="mk ${m.type === 'expression' ? 'mk-e' : 'mk-g'} fx">${esc(m.text)}</span> → <b>${esc(m.fix)}</b> – ${esc(m.why_ko)} ${sayBtn(m.fix)}</li>`).join('');
+  const issueLis = d.map((p) => `<li><span class="mk ${p.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(p.word)}</span> – ${esc(p.issue_ko)} ${sayBtn(p.word)} ${saveBtn(p.word, '발음: ' + p.issue_ko)}</li>`).join('');
+  const markLis = mks.map((m) => `<li><span class="mk ${m.type === 'expression' ? 'mk-e' : 'mk-g'} fx">${esc(m.text)}</span> → <b>${esc(m.fix)}</b> – ${esc(m.why_ko)} ${sayBtn(m.fix)} ${saveBtn(m.fix, '내 표현: ' + m.text + ' – ' + m.why_ko)}</li>`).join('');
   const fixLis = (it.fixes_ko || []).map((x) => `<li>${esc(x)}</li>`).join('');
   const list = (title, lis) => lis ? `<div style="margin-top:8px"><b>${title}</b><ul class="tight">${lis}</ul></div>` : '';
   const shown = isRead ? q.text : a.transcript;
@@ -917,7 +976,8 @@ function resultItem(it, a, q, i, type) {
   if (isRead) fixes = list('고칠 점', issueLis + fixLis);
   else fixes = list('문법·표현 고치기', markLis) + list('발음·강세', issueLis) + list('내용·전달', fixLis);
   return `<div class="card">
-    <div class="rowb"><b>Q${i + 1}</b><span class="badge ${cls}">${it.score} / ${it.max}</span></div>
+    <div class="rowb"><b>Q${i + 1}</b><span><span class="badge ${cls}">${it.score} / ${it.max}</span>${saved ? '' : ` <button class="mini" data-act="saveQ" data-i="${i}">문제 저장</button>`}</span></div>
+    ${isRead ? '' : `<div class="sub" style="margin-top:8px">질문</div><div class="pre" style="margin-bottom:4px">${esc(q.text)}</div>`}
     <div class="sub" style="margin-top:8px">${isRead ? '읽은 지문' : 'AI가 들은 내 답변'}</div>
     <div class="quote">${shown ? speechMarked(shown, markSrc) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
     <div class="sub">${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
@@ -931,15 +991,50 @@ function resultItem(it, a, q, i, type) {
 }
 
 /* ═══════════════ 기록 ═══════════════ */
+const notes = { sub: 'expr', q: '', hide: false, add: false, view: null };
+const qs = () => store.get('ec_qs', []);
+const fmtD = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()}`; };
+function noteListHTML() {
+  const k = notes.q.trim().toLowerCase();
+  const all = phrases();
+  const l = k ? all.filter((x) => (x.en + ' ' + x.ko + ' ' + (x.ex || '')).toLowerCase().includes(k)) : all;
+  if (!all.length) return '<p class="sub">아직 없어요. 위의 "직접 추가"를 누르거나, 대화·토스 화면에서 글자를 길게 눌러 선택하면 나오는 저장 버튼을 써보세요.</p>';
+  if (!l.length) return '<p class="sub">검색 결과가 없어요.</p>';
+  return l.slice(0, 200).map((x) => `<div class="card" style="padding:10px 14px">
+    <div class="rowb"><b>${esc(x.en)}</b><div class="row"><button class="mini" data-act="say" data-text="${esc(x.en)}">듣기</button><button class="mini" data-act="editPhrase" data-id="${x.id}">편집</button><button class="mini" data-act="delPhrase" data-id="${x.id}">삭제</button></div></div>
+    <div class="sub ${notes.hide && x.ko ? 'kohide' : ''}" ${notes.hide && x.ko ? 'data-act="reveal"' : ''} style="margin-top:4px">${x.ko ? esc(x.ko) : '(뜻 없음 – 편집으로 추가)'}</div>
+    ${x.ex ? `<div class="sub ${notes.hide ? 'kohide' : ''}" ${notes.hide ? 'data-act="reveal"' : ''} style="margin-top:2px">${esc(x.ex)}</div>` : ''}
+  </div>`).join('');
+}
+function noteQHTML() {
+  const l = qs();
+  if (!l.length) return '<p class="sub">아직 없어요. 토스 결과 화면에서 문제 카드의 "문제 저장"을 누르면 여기에 쌓여요.</p>';
+  return l.map((x) => `<div class="card" style="padding:10px 14px">
+    <div class="rowb"><b>${esc(x.label)}</b><span class="badge ${x.it.score / x.it.max >= 0.8 ? 'hi' : x.it.score / x.it.max <= 0.4 ? 'lo' : ''}">${x.it.score} / ${x.it.max}</span></div>
+    <div class="sub" style="margin:4px 0 8px">${esc(x.q.text).slice(0, 110)}${x.q.text.length > 110 ? '…' : ''} · ${fmtD(x.date)}</div>
+    <div class="row"><button class="mini" data-act="qRedo" data-id="${x.id}">다시 풀기</button><button class="mini" data-act="qView" data-id="${x.id}">피드백 보기</button><button class="mini" data-act="qDel" data-id="${x.id}">삭제</button></div>
+  </div>`).join('');
+}
 function renderLog() {
-  const h = history(), p = phrases();
-  const fmt = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  if (notes.view) {
+    const x = qs().find((v) => v.id === notes.view);
+    if (x) {
+      view.innerHTML = `<div class="rowb" style="margin-bottom:8px"><h1 style="margin:0">${esc(x.label)}</h1><button class="link" data-act="qBack">목록</button></div>
+        ${resultItem(x.it, x.a, x.q, x.qi || 0, x.type, true)}
+        <button class="btn" data-act="qRedo" data-id="${x.id}">다시 풀기</button>`;
+      return;
+    }
+    notes.view = null;
+  }
+  const np = phrases().length, nq = qs().length;
   view.innerHTML = `
-    <h1>기록</h1>
-    <h2>연습 기록</h2>
-    ${h.length ? h.slice(0, 40).map((e) => `<div class="card rowb" style="padding:10px 14px"><div><b>${e.kind === 'toeic' ? esc(e.label) : esc((SCENARIOS.find((s) => s.id === e.scenario) || {}).name || '회화')}</b><div class="sub">${fmt(e.date)}${e.kind === 'talk' ? ` · ${e.turns}턴` : ''}</div></div>${e.kind === 'toeic' ? `<span class="badge ${e.sum / e.max >= 0.8 ? 'hi' : e.sum / e.max <= 0.4 ? 'lo' : ''}">${e.sum}/${e.max}</span>` : ''}</div>`).join('') : '<p class="sub">아직 기록이 없어요.</p>'}
-    <h2>표현 노트 <span class="sub">(${p.length})</span></h2>
-    ${p.length ? p.slice(0, 80).map((x, i) => `<div class="card rowb" style="padding:10px 14px"><div style="flex:1"><b>${esc(x.en)}</b><div class="sub">${esc(x.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(x.en)}">듣기</button><button class="mini" data-act="delPhrase" data-i="${i}">삭제</button></div>`).join('') : '<p class="sub">대화하면서 나온 유용한 표현이 여기에 쌓여요.</p>'}`;
+    <h1>노트</h1>
+    <div class="seg"><button data-act="noteSub" data-sub="expr" class="${notes.sub === 'expr' ? 'on' : ''}">표현·단어 (${np})</button><button data-act="noteSub" data-sub="q" class="${notes.sub === 'q' ? 'on' : ''}">저장한 문제 (${nq})</button></div>
+    ${notes.sub === 'expr' ? `
+      <button class="btn sec" data-act="noteAddToggle">${notes.add ? '닫기' : '+ 직접 추가'}</button>
+      ${notes.add ? `<form class="card nf noteForm" style="margin-top:10px"><input id="nfEn" type="text" placeholder="영어 단어·표현" autocomplete="off"><input id="nfKo" type="text" placeholder="뜻 (비워두면 AI가 채워줘요)" autocomplete="off"><button class="btn">저장</button></form>` : ''}
+      <div class="row" style="margin:10px 0"><input id="noteQ" type="text" placeholder="검색" value="${esc(notes.q)}" autocomplete="off" style="flex:1;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit"><label class="sub" style="white-space:nowrap"><input type="checkbox" id="noteHide" ${notes.hide ? 'checked' : ''}> 뜻 가리기</label></div>
+      <div id="noteList">${noteListHTML()}</div>` : `<div id="noteQList">${noteQHTML()}</div>`}`;
 }
 
 /* ═══════════════ 설정 ═══════════════ */
@@ -1013,14 +1108,74 @@ document.addEventListener('click', (e) => {
     case 'skip': if (toeic.sess && toeic.sess.skip) toeic.sess.skip(); break;
     case 'stopRec': if (toeic.sess && toeic.sess.stopRec) toeic.sess.stopRec(); break;
     case 'abort': abortToeic(); renderToeic(); break;
-    case 'delPhrase': { const p = phrases(); p.splice(+d.i, 1); store.set('ec_phrases', p); renderLog(); break; }
+    case 'delPhrase': store.set('ec_phrases', phrases().filter((x) => x.id !== d.id)); renderLog(); break;
+    case 'editPhrase': {
+      const l = phrases(), x = l.find((v) => v.id === d.id);
+      if (!x) break;
+      const en = prompt('영어', x.en);
+      if (en === null) break;
+      const ko = prompt('뜻', x.ko);
+      if (ko === null) break;
+      if (en.trim()) x.en = en.trim();
+      x.ko = ko.trim();
+      store.set('ec_phrases', l); renderLog(); break;
+    }
+    case 'reveal': el.classList.remove('kohide'); el.removeAttribute('data-act'); break;
+    case 'noteSub': notes.sub = d.sub; notes.view = null; renderLog(); break;
+    case 'noteAddToggle': notes.add = !notes.add; renderLog(); if (notes.add) { const f = $('#nfEn'); if (f) f.focus(); } break;
+    case 'saveQ': saveQ(+d.i); break;
+    case 'qRedo': notes.view = null; startRedo(d.id); break;
+    case 'qView': notes.view = d.id; renderLog(); view.scrollTop = 0; break;
+    case 'qBack': notes.view = null; renderLog(); break;
+    case 'qDel': store.set('ec_qs', qs().filter((x) => x.id !== d.id)); renderLog(); break;
+    case 'selSave': {
+      const sel = window.__sel;
+      hideSel();
+      if (sel && sel.text) { const n = addPhrases([{ en: sel.text }], sel.ctx); toast(n ? '노트에 저장했어요' : '이미 저장돼 있어요'); }
+      break;
+    }
     case 'defLvl': settings.level = d.id; talk.level = d.id; saveSettings(); renderSettings(); break;
     case 'logout': password = ''; store.set('ec_pw', ''); showLogin(); break;
-    case 'wipe': if (confirm('저장된 대화, 기록, 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); store.set('ec_convs', []); toast('지웠어요'); } break;
+    case 'wipe': if (confirm('저장된 대화, 기록, 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); store.set('ec_qs', []); store.set('ec_convs', []); toast('지웠어요'); } break;
   }
 });
 
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'noteQ') { notes.q = e.target.value; const l = $('#noteList'); if (l) l.innerHTML = noteListHTML(); }
+});
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'noteHide') { notes.hide = e.target.checked; const l = $('#noteList'); if (l) l.innerHTML = noteListHTML(); }
+});
+/* 글자를 선택하면 나오는 저장 버튼 */
+function hideSel() { const b = $('#selBar'); if (b) { b.classList.add('hidden'); b.innerHTML = ''; } window.__sel = null; }
+let selTimer, selBusy = false;
+$('#selBar').addEventListener('pointerdown', () => { selBusy = true; setTimeout(() => { selBusy = false; }, 800); });
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selTimer);
+  selTimer = setTimeout(() => {
+    const sel = window.getSelection && window.getSelection();
+    const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+    const node = sel && sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
+    const ok = text.length >= 2 && text.length <= 100 && /[A-Za-z]/.test(text) && node && node.closest && node.closest('#view') && !node.closest('input,textarea,form,#noteList') && tab !== 'log' && tab !== 'settings';
+    if (!ok) { if (window.__sel && !selBusy) hideSel(); return; }
+    const blk = node.closest('.bubble,.quote,li,.pre,.card') || node;
+    window.__sel = { text, ctx: (blk.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 300) };
+    const b = $('#selBar');
+    b.innerHTML = `<button data-act="selSave">노트에 저장: ${esc(text.length > 40 ? text.slice(0, 40) + '…' : text)}</button>`;
+    b.classList.remove('hidden');
+  }, 200);
+});
 document.addEventListener('submit', (e) => {
+  const nf = e.target.closest && e.target.closest('.noteForm');
+  if (nf) {
+    e.preventDefault();
+    const en = ($('#nfEn').value || '').trim(), ko = ($('#nfKo').value || '').trim();
+    if (!en) return;
+    const n = addPhrases([{ en, ko }]);
+    toast(n ? '저장했어요' : '이미 저장돼 있어요');
+    notes.add = false; renderLog();
+    return;
+  }
   const f = e.target.closest && e.target.closest('.askForm');
   if (!f) return;
   e.preventDefault();
