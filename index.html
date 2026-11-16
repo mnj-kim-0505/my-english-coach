@@ -907,17 +907,25 @@ function resultItem(it, a, q, i, type) {
   const wpm = a.duration_sec > 2 ? Math.round(words / (a.duration_sec / 60)) : 0;
   const d = a.pronunciation_issues || [];
   const isRead = type === 'read_aloud';
-  const issueLis = d.map((p) => `<li><span class="mk ${p.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(p.word)}</span> – ${esc(p.issue_ko)} <button class="mini" data-act="say" data-text="${esc(p.word)}">듣기</button></li>`).join('');
+  const mks = isRead ? [] : (it.marks || []);
+  const sayBtn = (t) => `<button class="mini" data-act="say" data-text="${esc(t)}">듣기</button>`;
+  const issueLis = d.map((p) => `<li><span class="mk ${p.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(p.word)}</span> – ${esc(p.issue_ko)} ${sayBtn(p.word)}</li>`).join('');
+  const markLis = mks.map((m) => `<li><span class="mk ${m.type === 'expression' ? 'mk-e' : 'mk-g'} fx">${esc(m.text)}</span> → <b>${esc(m.fix)}</b> – ${esc(m.why_ko)} ${sayBtn(m.fix)}</li>`).join('');
   const fixLis = (it.fixes_ko || []).map((x) => `<li>${esc(x)}</li>`).join('');
+  const list = (title, lis) => lis ? `<div style="margin-top:8px"><b>${title}</b><ul class="tight">${lis}</ul></div>` : '';
   const shown = isRead ? q.text : a.transcript;
+  const markSrc = isRead ? d : mks.map((m) => ({ word: m.text, type: m.type === 'expression' ? 'stress' : 'sound' }));
+  let fixes;
+  if (isRead) fixes = list('고칠 점', issueLis + fixLis);
+  else fixes = list('문법·표현 고치기', markLis) + list('발음·강세', issueLis) + list('내용·전달', fixLis);
   return `<div class="card">
     <div class="rowb"><b>Q${i + 1}</b><span class="badge ${cls}">${it.score} / ${it.max}</span></div>
     <div class="sub" style="margin-top:8px">${isRead ? '읽은 지문' : 'AI가 들은 내 답변'}</div>
-    <div class="quote">${shown ? speechMarked(shown, d) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
+    <div class="quote">${shown ? speechMarked(shown, markSrc) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
     <div class="sub">${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
     ${isRead && a.transcript ? `<details><summary>AI가 들은 내 낭독</summary><div class="quote">${esc(a.transcript)}</div></details>` : ''}
     ${it.strengths_ko.length ? `<div style="margin-top:8px"><b>좋은 점</b><ul class="tight">${it.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    ${issueLis || fixLis ? `<div><b>고칠 점</b><ul class="tight">${issueLis}${fixLis}</ul></div>` : ''}
+    ${fixes}
     ${a.delivery_ko || it.pronunciation_ko ? `<details><summary>전체 느낌</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}</details>` : ''}
     ${it.improved_answer ? `<details><summary>내 답변 다듬기</summary><div class="pre">${esc(it.improved_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.improved_answer)}">듣기</button></details>` : ''}
     ${it.model_answer ? `<details><summary>모범 답안</summary><div class="pre">${esc(it.model_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.model_answer)}">듣기</button></details>` : ''}

@@ -289,13 +289,27 @@ const EVAL_TOOL = {
           properties: {
             index: { type: 'integer', description: '0-based item index' },
             score: { type: 'integer' },
-            strengths_ko: { type: 'array', items: { type: 'string' } },
-            fixes_ko: { type: 'array', items: { type: 'string' }, description: 'One short Korean line each. ONLY problems that are NOT a specific word\'s sound or stress (those are listed separately from the delivery notes and must NOT be repeated here): words omitted, added or repeated vs the reference text, pace, pauses, intonation, grammar, content, structure. Empty array if none.' },
+            strengths_ko: { type: 'array', items: { type: 'string' }, description: '1-3 short Korean lines on what was done well (content, delivery, language).' },
+            fixes_ko: { type: 'array', items: { type: 'string' }, description: 'One short Korean line each. ONLY problems that are NOT already covered elsewhere. Never repeat a specific word\'s sound/stress (listed separately from the delivery notes) or a grammar/word-choice fix (listed in marks). For read-aloud: words omitted, added or repeated vs the reference text, pace, pauses, intonation. For the other types: content, relevance, completeness, use of the time, structure (opinion/reason/example), accuracy of facts from the material, pace. Empty array if none.' },
+            marks: {
+              type: 'array',
+              description: 'Grammar mistakes and clearly improvable word choices in the learner\'s transcript (NOT pronunciation). At most 8, most important first. Empty array for read-aloud, for no response, or if the language was fine.',
+              items: {
+                type: 'object',
+                properties: {
+                  text: str('The exact wrong/improvable words copied letter for letter from the learner\'s transcript (short contiguous span, 1-6 words)'),
+                  type: { type: 'string', enum: ['grammar', 'expression'], description: 'grammar = wrong form/error; expression = correct but unnatural or weak wording' },
+                  fix: str('The corrected or more natural English for that span'),
+                  why_ko: str('ONE short Korean line explaining the fix'),
+                },
+                required: ['text', 'type', 'fix', 'why_ko'],
+              },
+            },
             pronunciation_ko: str('One short Korean sentence on overall intonation/rhythm; empty if nothing notable. Never use IPA or phonetic symbols.'),
             improved_answer: str('The learner\'s own answer polished for grammar/vocabulary while keeping their ideas (English). Empty string for read-aloud or no response.'),
             model_answer: str('A strong model answer that fits the time limit (about 2.3 words per second), in English. Empty string for read-aloud.'),
           },
-          required: ['index', 'score', 'strengths_ko', 'fixes_ko', 'pronunciation_ko', 'improved_answer', 'model_answer'],
+          required: ['index', 'score', 'strengths_ko', 'fixes_ko', 'marks', 'pronunciation_ko', 'improved_answer', 'model_answer'],
         },
       },
     },
@@ -357,6 +371,10 @@ ${RUBRICS[type]}`,
       max: spec.max,
       strengths_ko: Array.isArray(it.strengths_ko) ? it.strengths_ko : [],
       fixes_ko: Array.isArray(it.fixes_ko) ? it.fixes_ko : [],
+      marks: (Array.isArray(it.marks) ? it.marks : [])
+        .map((m) => ({ text: String((m && m.text) || '').trim(), type: m && m.type === 'expression' ? 'expression' : 'grammar', fix: String((m && m.fix) || '').trim(), why_ko: String((m && m.why_ko) || '').trim() }))
+        .filter((m) => m.text && m.fix && String((answers[i] && answers[i].transcript) || '').toLowerCase().includes(m.text.toLowerCase()))
+        .slice(0, 8),
       pronunciation_ko: String(it.pronunciation_ko || ''),
       improved_answer: String(it.improved_answer || ''),
       model_answer: String(it.model_answer || ''),
