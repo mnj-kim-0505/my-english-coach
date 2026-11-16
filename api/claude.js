@@ -61,7 +61,7 @@ const CONV_TOOL = {
         properties: {
           needed: { type: 'boolean' },
           better: str('A corrected, more natural version of the ENTIRE last message in English, covering every sentence the learner said (keep their meaning and sentence count; do not drop or merge sentences). Empty string if not needed.'),
-          note_ko: str('Korean explanation of every real fix, one short sentence per fix, at most 4, in the order of the learner\'s sentences, each naming the wrong part and the right form. Separate with newlines. Empty string if not needed.'),
+          note_ko: str('Korean explanation of every real fix, one to two sentences per fix (the wrong part, the right form, and why), at most 6 fixes, in the order of the learner\'s sentences, each naming the wrong part and the right form. Separate with newlines. Empty string if not needed.'),
         },
         required: ['needed', 'better', 'note_ko'],
       },
@@ -87,7 +87,7 @@ Rules:
 - correction.needed is true only if the fix would genuinely improve their English. If their sentence was fine, set needed=false and leave the strings empty. If there is no learner message yet (you are opening the conversation), needed=false.
 - If the learner writes Korean (Hangul), especially inside double quotes, it means they could not recall the English. Understand it and react to the meaning in your reply (never ask them to repeat it in English first). Then set correction.needed to true: in correction.better replace every Korean part with the natural English expression (use standard romanization for place names), and in note_ko give the English for each Korean part, e.g. "증평" → Jeungpyeong.
 - Check EVERY sentence in the learner's message, not just the first one. If any sentence has a real error, needed is true and the correction and notes must cover all of them.
-- note_ko must be Korean, one short sentence per distinct fix (at most 4), newline-separated.
+- note_ko must be Korean, one to two sentences per distinct fix (what was wrong, the right form, and a brief why), at most 6 fixes, newline-separated.
 - phrase.en: one natural, reusable expression worth learning, copied EXACTLY (same words, same order, contiguous) from your own "reply" so it can be underlined there. Use empty strings if nothing in your reply is worth saving.`;
 }
 
@@ -100,7 +100,7 @@ async function conversation(body) {
     system: convSystem(scenario, level),
     messages,
     tool: CONV_TOOL,
-    maxTokens: 700,
+    maxTokens: 1050,
   });
 }
 
@@ -134,7 +134,7 @@ async function hint(body) {
     system: `You are helping a Korean learner of English reply in a conversation.\nScenario: ${SCENARIOS[scenario]}\nLearner level: ${LEVELS[level]}`,
     messages: merged,
     tool: HINT_TOOL,
-    maxTokens: 500,
+    maxTokens: 750,
   });
 }
 
@@ -144,14 +144,14 @@ const REVIEW_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      overall_ko: str('2-3 honest sentences in Korean summarizing how they did.'),
-      strengths_ko: { type: 'array', items: { type: 'string' }, description: 'Up to 3 specific strengths, in Korean.' },
+      overall_ko: str('3-5 honest sentences in Korean summarizing how they did.'),
+      strengths_ko: { type: 'array', items: { type: 'string' }, description: 'Up to 4 specific strengths, in Korean.' },
       mistakes: {
         type: 'array',
         description: 'Up to 5 most valuable corrections.',
         items: {
           type: 'object',
-          properties: { original: str('What the learner said'), better: str('Better version'), why_ko: str('Short Korean reason') },
+          properties: { original: str('What the learner said'), better: str('Better version'), why_ko: str('Korean reason, 1-2 sentences') },
           required: ['original', 'better', 'why_ko'],
         },
       },
@@ -160,7 +160,7 @@ const REVIEW_TOOL = {
         description: 'Up to 5 useful expressions worth memorizing.',
         items: { type: 'object', properties: { en: { type: 'string' }, ko: { type: 'string' } }, required: ['en', 'ko'] },
       },
-      next_focus_ko: str('One concrete thing to focus on next time, in Korean.'),
+      next_focus_ko: str('One concrete thing to focus on next time, in Korean, 2-3 sentences with how to practice it.'),
     },
     required: ['overall_ko', 'strengths_ko', 'mistakes', 'phrases', 'next_focus_ko'],
   },
@@ -177,7 +177,7 @@ async function convReview(body) {
 The learner's lines are speech transcripts, so ignore punctuation, capitalization and fillers. Be honest and specific rather than flattering; do not inflate. Only list real, valuable corrections (do not invent errors). Write explanations in Korean.`,
     messages: [{ role: 'user', content: `Conversation:\n${transcript}` }],
     tool: REVIEW_TOOL,
-    maxTokens: 1800,
+    maxTokens: 2700,
   });
 }
 
@@ -237,7 +237,7 @@ async function toeicGenerate(body) {
     system: `You write practice material in the style of the TOEIC Speaking test for Korean test-takers. Use natural, realistic business/daily-life English at an appropriate test level. Never reuse stock examples verbatim; be creative within the theme. Return the result by calling the tool.`,
     messages: [{ role: 'user', content: `Theme for this set: ${theme}.\n\n${GEN_INSTRUCTIONS[type]}\n\nThe set must contain exactly ${spec.count} item(s).` }],
     tool: SET_TOOL,
-    maxTokens: 1800,
+    maxTokens: 2700,
   });
   const items = (set.items || []).slice(0, spec.count).map((i) => ({ text: String(i.text || '').trim() })).filter((i) => i.text);
   if (items.length !== spec.count) throw new HttpError(502, '문제 생성에 실패했어요. 다시 시도해 주세요.');
@@ -264,7 +264,7 @@ const EVAL_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      overall_ko: str('2-4 honest sentences in Korean summarizing performance. No flattery.'),
+      overall_ko: str('3-6 honest sentences in Korean summarizing performance. No flattery.'),
       confidence_pct: { type: 'integer', description: 'Your confidence (0-100) that each item score is within 1 point of what an official rater would give, given you only have a transcript and AI delivery notes rather than the audio.' },
       priorities_ko: { type: 'array', items: { type: 'string' }, description: 'Top 3 things to improve, in Korean, most impactful first.' },
       items: {
@@ -329,7 +329,7 @@ Rubric:
 ${RUBRICS[type]}`,
     messages: [{ role: 'user', content: `Evaluate this set. Input data (JSON):\n${JSON.stringify(payload)}` }],
     tool: EVAL_TOOL,
-    maxTokens: 4096,
+    maxTokens: 6144,
   });
 
   const byIndex = new Map((out.items || []).map((i) => [i.index, i]));
@@ -361,7 +361,7 @@ const EXPLAIN_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      answer_ko: str('Answer in Korean, plain and concise (max ~5 sentences). Be honest; if the original was acceptable, say so. Mention nuance differences when relevant.'),
+      answer_ko: str('Answer in Korean, plain and concrete (max ~8 sentences). Be honest; if the original was acceptable, say so. Mention nuance differences when relevant.'),
       examples: {
         type: 'array',
         description: '0-2 short example sentences that illustrate the point (empty if not useful).',
@@ -389,10 +389,10 @@ async function explain(body) {
   msgs.push({ role: 'user', content: thread.length ? question : `${ctx} ${question}` });
   const out = await callClaude({
     model: MODELS.fast(),
-    system: 'You are a friendly, honest English tutor for a Korean adult learner. Answer their follow-up question about the correction in Korean, concisely and concretely. Do not flatter. If the learner\'s original sentence was actually fine, say so. If unsure about a nuance, say how sure you are in percent.',
+    system: 'You are a friendly, honest English tutor for a Korean adult learner. Answer their follow-up question about the correction in Korean, clearly and concretely, with the reasoning. Do not flatter. If the learner\'s original sentence was actually fine, say so. If unsure about a nuance, say how sure you are in percent.',
     messages: msgs,
     tool: EXPLAIN_TOOL,
-    maxTokens: 700,
+    maxTokens: 1050,
   });
   return {
     answer_ko: String(out.answer_ko || '').slice(0, 1500),
