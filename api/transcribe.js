@@ -31,12 +31,12 @@ ${reference.slice(0, 1500)}
   return p;
 }
 
-async function callGemini(prompt, audio, mime, useThinking) {
+async function callGemini(prompt, audio, mime, useThinking, model, timeoutMs) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new HttpError(500, '서버에 GEMINI_API_KEY 환경변수가 설정되어 있지 않아요.');
   const generationConfig = { responseMimeType: 'application/json' };
   if (useThinking) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODELS.gemini())}:generateContent`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   let r;
   try {
     r = await fetch(url, {
@@ -46,10 +46,10 @@ async function callGemini(prompt, audio, mime, useThinking) {
         contents: [{ role: 'user', parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: audio } }] }],
         generationConfig,
       }),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
-    throw new HttpError(504, 'Gemini 응답이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.');
+    return { timeout: true };
   }
   const data = await r.json().catch(() => ({}));
   return { r, data };
@@ -62,9 +62,18 @@ module.exports = handle(async (body) => {
   if (audio.length > 4_000_000) throw new HttpError(413, '녹음이 너무 길어요 (최대 약 2분).');
 
   const prompt = buildPrompt(String(reference || ''));
-  let { r, data } = await callGemini(prompt, audio, mime, true);
-  // 모델이 thinkingConfig를 지원하지 않으면 옵션 없이 한 번 더 시도
-  if (r.status === 400) ({ r, data } = await callGemini(prompt, audio, mime, false));
+  const started = Date.now();
+  const left = () => Math.max(5000, 54000 - (Date.now() - started));
+  const main = MODELS.gemini();
+  const backup = process.env.GEMINI_MODEL_BACKUP || 'gemini-3.5-flash-lite';
+  // 1차: 기본 모델(22초 제한) → 멈추면 가벼운 모델로 자동 재시도
+  let res = await callGemini(prompt, audio, mime, true, main, 22000);
+  if (!res.timeout && res.r.status === 400) res = await callGemini(prompt, audio, mime, false, main, 22000);
+  if (res.timeout || (res.r && (res.r.status === 429 || res.r.status >= 500))) {
+    res = await callGemini(prompt, audio, mime, false, backup, left());
+  }
+  if (res.timeout) throw new HttpError(504, 'Gemini 응답이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.');
+  const { r, data } = res;
   if (!r.ok) {
     const msg = data && data.error && data.error.message ? data.error.message : 'unknown';
     throw new HttpError(502, `Gemini API 오류 (${r.status}): ${msg}`);
