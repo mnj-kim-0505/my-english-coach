@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>My English Coach</title>
+<style>
+:root{
+  --bg:#f5f6fb;--card:#fff;--ink:#1b1d2a;--sub:#6a6f86;--line:#e5e7f0;
+  --accent:#4f46e5;--accent-ink:#fff;--soft:#eef0ff;--ok:#15803d;--okbg:#e8f6ec;
+  --warn:#b45309;--warnbg:#fff4e0;--bad:#dc2626;--badbg:#fdeaea;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1016;--card:#171a24;--ink:#eceef7;--sub:#9aa0b8;--line:#262a3a;
+    --accent:#8b93ff;--accent-ink:#0e1016;--soft:#20243d;--ok:#4ade80;--okbg:#12281b;
+    --warn:#fbbf24;--warnbg:#2c2410;--bad:#f87171;--badbg:#2e1616;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:720px;margin:0 auto}
+#view{flex:1;overflow-y:auto;padding:14px 14px 20px;-webkit-overflow-scrolling:touch}
+#tabs{display:flex;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom)}
+#tabs button{flex:1;border:0;background:none;color:var(--sub);padding:9px 0 8px;font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:1px}
+#tabs button .i{font-size:20px;line-height:1.1}
+#tabs button.on{color:var(--accent);font-weight:700}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:18px 0 8px}
+.sub{color:var(--sub);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center}
+.rowb{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 10px;font:inherit;text-align:left}
+.chip.on{border-color:var(--accent);background:var(--soft);font-weight:600}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--card);color:var(--ink);padding:10px;font:inherit}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:13px 16px;font:inherit;font-weight:700;width:100%}
+.btn.sec{background:var(--soft);color:var(--accent)}
+.btn.ghost{background:none;color:var(--sub);font-weight:500}
+.btn:disabled{opacity:.5}
+.mini{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:3px 10px;font:inherit;font-size:13px}
+.link{border:0;background:none;color:var(--sub);font:inherit;font-size:14px;text-decoration:underline;padding:4px}
+input[type=text],input[type=password],select{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font:inherit}
+input[type=range]{width:100%}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
+.bubble{max-width:86%;padding:10px 13px;border-radius:16px;position:relative;white-space:pre-wrap;word-break:break-word}
+.bubble.ai{background:var(--card);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+.bubble.me{background:var(--accent);color:var(--accent-ink);align-self:flex-end;border-bottom-right-radius:4px}
+.bubble .mini{margin-top:6px;display:inline-block}
+.coach{align-self:flex-end;max-width:92%;background:var(--warnbg);color:var(--ink);border-radius:12px;padding:8px 11px;font-size:14px}
+.coach.ok{background:var(--okbg);color:var(--ok)}
+.coach summary{cursor:pointer;font-weight:600}
+.coach b{display:block;margin-bottom:2px}
+#bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 22%);padding:12px 0 2px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 6px 18px rgba(79,70,229,.35)}
+.mic.rec{background:var(--bad);color:#fff;animation:pulse 1.2s infinite}
+.mic:disabled{opacity:.5}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}100%{box-shadow:0 0 0 18px rgba(220,38,38,0)}}
+.status{font-size:13px;color:var(--sub);min-height:20px}
+/* toeic */
+.qcard{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:13px;margin-bottom:8px;font:inherit}
+.qcard b{font-size:15px}
+.pre{white-space:pre-wrap;background:var(--soft);border-radius:12px;padding:12px;font-size:15px}
+.big{font-size:19px;line-height:1.6}
+.timer{font-size:54px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;width:100%;background:var(--accent);transition:width .15s linear}
+.bar.rec i{background:var(--bad)}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-weight:700;font-size:14px;background:var(--soft);color:var(--accent)}
+.badge.hi{background:var(--okbg);color:var(--ok)}
+.badge.lo{background:var(--badbg);color:var(--bad)}
+.quote{border-left:3px solid var(--line);padding:2px 10px;color:var(--ink);margin:6px 0;white-space:pre-wrap}
+ul.tight{margin:4px 0 8px;padding-left:20px}
+ul.tight li{margin:2px 0}
+details{margin:6px 0}
+details summary{cursor:pointer;font-weight:600}
+.center{text-align:center}
+.spin{display:inline-block;width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90%;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+#toast.show{opacity:.95}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:40}
+.modal .card{width:100%;max-width:380px;margin:0}
+label.tg{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view"></main>
+  <nav id="tabs">
+    <button data-tab="talk"><span class="i">💬</span>회화</button>
+    <button data-tab="toeic"><span class="i">🎯</span>토스</button>
+    <button data-tab="log"><span class="i">📒</span>기록</button>
+    <button data-tab="settings"><span class="i">⚙️</span>설정</button>
+  </nav>
+</div>
+<div id="toast"></div>
+<div id="login" class="modal hidden">
+  <div class="card">
+    <h1>My English Coach</h1>
+    <p class="sub">설정해 둔 앱 비밀번호를 입력하세요.</p>
+    <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <div style="height:10px"></div>
+    <button class="btn" id="pwGo">시작하기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ───────────── 유틸 ───────────── */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ───────────── 설정 ───────────── */
+const settings = Object.assign({ rate: 0.95, voiceURI: '', hideText: false, level: 'intermediate' }, store.get('ec_settings', {}));
+const saveSettings = () => store.set('ec_settings', settings);
+let password = store.get('ec_pw', '');
+
+/* ───────────── API ───────────── */
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-app-password': password },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({ error: r.status === 413 ? '녹음이 너무 길어요.' : '서버 응답을 읽을 수 없어요.' }));
+  if (!r.ok) {
+    if (r.status === 401) showLogin();
+    throw new Error(data.error || `오류 (${r.status})`);
+  }
+  return data;
+}
+
+/* ───────────── 오디오: TTS / 비프 / 녹음 ───────────── */
+let actx = null;
+function audioCtx() {
+  if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (C) actx = new C(); }
+  if (actx && actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function unlockAudio() {
+  audioCtx();
+  try {
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      speechSynthesis.speak(u);
+    }
+  } catch {}
+}
+async function beep() {
+  const c = audioCtx();
+  if (!c) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.frequency.value = 880; g.gain.value = 0.08;
+  o.connect(g); g.connect(c.destination); o.start();
+  await sleep(170); o.stop(); await sleep(60);
+}
+
+const TTS = {
+  voices: [],
+  load() {
+    if (!('speechSynthesis' in window)) return;
+    const vs = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+    if (vs.length) this.voices = vs;
+  },
+  pick() {
+    if (settings.voiceURI) { const v = this.voices.find((x) => x.voiceURI === settings.voiceURI); if (v) return v; }
+    const prefs = [/Google US English/i, /Samantha/i, /Aria|Jenny|Ava|Allison/i, /Daniel|Aaron|Guy/i];
+    for (const p of prefs) { const v = this.voices.find((x) => p.test(x.name) && /en[-_]US/i.test(x.lang)); if (v) return v; }
+    return this.voices.find((v) => /en[-_]US/i.test(v.lang)) || this.voices[0] || null;
+  },
+  speak(text) {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window) || !text) return resolve();
+      try { speechSynthesis.cancel(); } catch {}
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = settings.rate;
+      const v = this.pick();
+      if (v) u.voice = v;
+      let done = false;
+      const fin = () => { if (!done) { done = true; clearTimeout(guard); resolve(); } };
+      const words = text.split(/\s+/).length;
+      const guard = setTimeout(fin, (words / 2.2 / settings.rate + 4) * 1000); // onend가 안 오는 브라우저 대비
+      u.onend = fin; u.onerror = fin;
+      speechSynthesis.speak(u);
+    });
+  },
+  cancel() { try { speechSynthesis.cancel(); } catch {} },
+};
+if ('speechSynthesis' in window) { TTS.load(); speechSynthesis.onvoiceschanged = () => TTS.load(); }
+
+let micStream = null;
+async function getMic() {
+  if (micStream && micStream.getTracks().every((t) => t.readyState === 'live')) return micStream;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('마이크를 쓸 수 없어요. HTTPS 주소로 접속했는지 확인해 주세요.');
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  } catch {
+    throw new Error('마이크 권한이 필요해요. 브라우저 설정에서 허용해 주세요.');
+  }
+  return micStream;
+}
+function releaseMic() {
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());
+  micStream = null;
+}
+
+async function startRecorder(maxSec, onTick) {
+  const stream = await getMic();
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  const chunks = [];
+  const t0 = Date.now();
+  let stopped = false, resolveDone;
+  const done = new Promise((r) => (resolveDone = r));
+  let iv = null;
+  mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  mr.onstop = () => {
+    clearInterval(iv);
+    resolveDone({ blob: new Blob(chunks, { type: mr.mimeType || mime || 'audio/webm' }), durationSec: (Date.now() - t0) / 1000 });
+  };
+  const stop = () => { if (!stopped) { stopped = true; if (mr.state !== 'inactive') mr.stop(); } };
+  iv = setInterval(() => {
+    const s = (Date.now() - t0) / 1000;
+    if (onTick) onTick(s);
+    if (s >= maxSec) stop();
+  }, 150);
+  mr.start();
+  return { stop, done };
+}
+
+function decodeAudio(ctx, buf) {
+  return new Promise((res, rej) => {
+    const p = ctx.decodeAudioData(buf, res, rej);
+    if (p && p.catch) p.catch(rej);
+  });
+}
+function bytesToBase64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+// 어떤 브라우저 포맷(webm/mp4)이든 16kHz 모노 WAV로 통일 → Gemini가 확실히 읽는 형식
+async function toWavBase64(blob) {
+  const ctx = audioCtx();
+  const buf = await decodeAudio(ctx, await blob.arrayBuffer());
+  const rate = 16000;
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const off = new OAC(1, Math.max(1, Math.ceil(buf.duration * rate)), rate);
+  const src = off.createBufferSource();
+  src.buffer = buf; src.connect(off.destination); src.start(0);
+  const out = await off.startRendering();
+  const f32 = out.getChannelData(0);
+  const n = f32.length;
+  let peak = 0;
+  for (let i = 0; i < n; i++) { const a = Math.abs(f32[i]); if (a > peak) peak = a; }
+  const gain = peak > 0.005 && peak < 0.3 ? Math.min(6, 0.8 / peak) : 1; // 작은 목소리 보정
+  const wav = new ArrayBuffer(44 + n * 2), v = new DataView(wav);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const s = Math.max(-1, Math.min(1, f32[i] * gain));
+    v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return bytesToBase64(new Uint8Array(wav));
+}
+async function transcribe(blob, reference) {
+  const audio = await toWavBase64(blob);
+  return api('/api/transcribe', { audio, mime: 'audio/wav', reference: reference || '' });
+}
+
+/* ───────────── 기록 저장 ───────────── */
+const history = () => store.get('ec_history', []);
+function addHistory(entry) {
+  const h = history();
+  h.unshift({ ...entry, date: new Date().toISOString() });
+  store.set('ec_history', h.slice(0, 100));
+}
+const phrases = () => store.get('ec_phrases', []);
+function addPhrases(list) {
+  const cur = phrases();
+  for (const p of list || []) {
+    if (!p || !p.en || !p.en.trim()) continue;
+    if (cur.some((x) => x.en.toLowerCase() === p.en.trim().toLowerCase())) continue;
+    cur.unshift({ en: p.en.trim(), ko: (p.ko || '').trim(), date: new Date().toISOString() });
+  }
+  store.set('ec_phrases', cur.slice(0, 300));
+}
+
+/* ───────────── 라우터 ───────────── */
+const view = $('#view');
+let tab = 'talk';
+function go(t) {
+  if (tab === 'toeic' && t !== 'toeic' && toeic.sess) abortToeic();
+  if (tab === 'talk' && t !== 'talk') { TTS.cancel(); talkStopRec(); }
+  tab = t;
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  render();
+}
+function render() {
+  ({ talk: renderTalk, toeic: renderToeic, log: renderLog, settings: renderSettings })[tab]();
+}
+function showLogin() { $('#login').classList.remove('hidden'); setTimeout(() => $('#pw').focus(), 50); }
+
+/* ═══════════════ 일상 회화 ═══════════════ */
+const SCENARIOS = [
+  { id: 'free', ico: '💬', name: '자유 대화' },
+  { id: 'smalltalk', ico: '☕', name: '스몰토크' },
+  { id: 'work', ico: '🧪', name: '업무·연구 이야기' },
+  { id: 'cafe', ico: '🍽️', name: '카페·식당' },
+  { id: 'travel', ico: '✈️', name: '여행' },
+  { id: 'service', ico: '🛎️', name: '문의·불만 처리' },
+  { id: 'interview', ico: '💼', name: '면접' },
+];
+const LEVELS = [{ id: 'beginner', name: '초급' }, { id: 'intermediate', name: '중급' }, { id: 'advanced', name: '고급' }];
+const talk = { phase: 'setup', scenario: 'free', level: settings.level, msgs: [], status: 'idle', rec: null, hints: null, review: null };
+
+function renderTalk() {
+  const t = talk;
+  if (t.phase === 'setup') {
+    view.innerHTML = `
+      <h1>일상 회화 연습</h1>
+      <p class="sub">마이크 버튼으로 말하면 AI가 대답하고, 내 문장은 더 자연스럽게 고쳐줘요.</p>
+      <h2>상황</h2>
+      <div class="grid">${SCENARIOS.map((s) => `<button class="chip ${t.scenario === s.id ? 'on' : ''}" data-act="scn" data-id="${s.id}">${s.ico} ${s.name}</button>`).join('')}</div>
+      <h2>난이도</h2>
+      <div class="seg">${LEVELS.map((l) => `<button class="${t.level === l.id ? 'on' : ''}" data-act="lvl" data-id="${l.id}">${l.name}</button>`).join('')}</div>
+      <div style="height:18px"></div>
+      <button class="btn" data-act="talkStart">대화 시작</button>`;
+    return;
+  }
+  if (t.phase === 'review') {
+    const r = t.review;
+    view.innerHTML = `
+      <h1>대화 리뷰</h1>
+      ${!r ? `<div class="card center"><span class="spin"></span><p class="sub">리뷰 만드는 중…</p></div>` : `
+      <div class="card"><p style="margin:0">${esc(r.overall_ko)}</p></div>
+      ${r.strengths_ko.length ? `<h2>👍 잘한 점</h2><div class="card"><ul class="tight">${r.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+      ${r.mistakes.length ? `<h2>✏️ 고칠 표현</h2>${r.mistakes.map((m) => `<div class="card"><div class="sub">내가 한 말</div><div>${esc(m.original)}</div><div class="sub" style="margin-top:6px">더 좋은 표현</div><div><b>${esc(m.better)}</b> <button class="mini" data-act="say" data-text="${esc(m.better)}">🔊</button></div><div class="sub" style="margin-top:4px">${esc(m.why_ko)}</div></div>`).join('')}` : ''}
+      ${r.phrases.length ? `<h2>📌 외울 표현 <span class="sub">(기록 탭에 저장됨)</span></h2>${r.phrases.map((p) => `<div class="card rowb"><div><b>${esc(p.en)}</b><div class="sub">${esc(p.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(p.en)}">🔊</button></div>`).join('')}` : ''}
+      <h2>🎯 다음에 집중할 것</h2><div class="card">${esc(r.next_focus_ko)}</div>`}
+      <button class="btn" data-act="talkNew">새 대화 시작</button>`;
+    return;
+  }
+  const sc = SCENARIOS.find((s) => s.id === t.scenario);
+  view.innerHTML = `
+    <div class="rowb" style="margin-bottom:8px">
+      <div><b>${sc.ico} ${sc.name}</b> <span class="sub">· ${LEVELS.find((l) => l.id === t.level).name}</span></div>
+      <button class="mini" data-act="talkEnd">종료·리뷰</button>
+    </div>
+    <div class="chat" id="chat">${t.msgs.map(msgHTML).join('')}${t.status === 'thinking' ? '<div class="bubble ai"><span class="spin"></span></div>' : ''}</div>
+    ${t.hints ? `<div class="card"><div class="rowb"><b>💡 이렇게 말해볼까요?</b><button class="link" data-act="hintClose">닫기</button></div>${t.hints.map((h) => `<div style="margin:8px 0"><div class="row"><b style="flex:1">${esc(h.en)}</b><button class="mini" data-act="say" data-text="${esc(h.en)}">🔊</button></div><div class="sub">${esc(h.ko)}</div></div>`).join('')}</div>` : ''}
+    <div id="bar">
+      <div class="status" id="status">${statusText()}</div>
+      <div class="row" style="gap:18px">
+        <button class="mini" data-act="hint" ${t.status !== 'idle' ? 'disabled' : ''}>💡 힌트</button>
+        <button class="mic ${t.status === 'recording' ? 'rec' : ''}" data-act="mic" ${t.status === 'thinking' ? 'disabled' : ''}>${t.status === 'recording' ? '■' : t.status === 'speaking' ? '🔇' : '🎤'}</button>
+        <button class="mini" data-act="typeToggle">⌨️ 입력</button>
+      </div>
+      <form id="txtForm" class="row ${t.typing ? '' : 'hidden'}" style="width:100%"><input type="text" id="txt" placeholder="영어로 입력…" autocomplete="off"><button class="mini" style="padding:10px 14px">보내기</button></form>
+    </div>`;
+  const chat = $('#chat');
+  if (chat) view.scrollTop = view.scrollHeight;
+  const f = $('#txtForm');
+  if (f) f.onsubmit = (e) => { e.preventDefault(); const v = $('#txt').value.trim(); if (v) { $('#txt').value = ''; talkSend(v, null); } };
+}
+function statusText() {
+  return { idle: '마이크를 눌러 말해보세요', recording: '듣고 있어요… 다 말하면 ■ 를 누르세요', thinking: '처리 중…', speaking: 'AI가 말하는 중 (🔇로 중지)' }[talk.status] || '';
+}
+function msgHTML(m, i) {
+  if (m.role === 'assistant') {
+    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">🔊 다시 듣기</button></div>`;
+  }
+  let extra = '';
+  if (m.correction) {
+    if (m.correction.needed) extra += `<div class="coach"><b>💡 더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div></div>`;
+    else extra += `<div class="coach ok">👍 자연스러워요</div>`;
+  }
+  const d = m.delivery;
+  if (d && ((d.pronunciation_issues && d.pronunciation_issues.length) || d.delivery_ko)) {
+    extra += `<details class="coach"><summary>🎙 발음·전달 메모</summary>${d.delivery_ko ? `<div>${esc(d.delivery_ko)}</div>` : ''}${(d.pronunciation_issues || []).map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}</details>`;
+  }
+  return `<div class="bubble me">${esc(m.content)}</div>${extra}`;
+}
+function talkSetStatus(s) { talk.status = s; if (tab === 'talk' && talk.phase === 'chat') renderTalk(); }
+function talkStopRec() { if (talk.rec) { try { talk.rec.stop(); } catch {} talk.rec = null; } if (talk.status === 'recording') talk.status = 'idle'; }
+
+async function talkStart() {
+  unlockAudio();
+  talk.msgs = []; talk.phase = 'chat'; talk.hints = null; talk.review = null; talk.typing = false;
+  renderTalk();
+  await talkTurn();
+}
+async function talkTurn() {
+  talkSetStatus('thinking');
+  try {
+    const res = await api('/api/claude', { task: 'conversation', scenario: talk.scenario, level: talk.level, messages: talk.msgs.map((m) => ({ role: m.role, content: m.content })) });
+    const lastUser = [...talk.msgs].reverse().find((m) => m.role === 'user');
+    if (lastUser && talk.msgs[talk.msgs.length - 1] === lastUser) lastUser.correction = res.correction;
+    talk.msgs.push({ role: 'assistant', content: res.reply });
+    if (res.phrase && res.phrase.en) addPhrases([res.phrase]);
+    talkSetStatus('speaking');
+    await TTS.speak(res.reply);
+  } catch (e) { toast(e.message); }
+  if (talk.status !== 'recording') talkSetStatus('idle');
+}
+async function talkSend(text, delivery) {
+  talk.hints = null;
+  talk.msgs.push({ role: 'user', content: text, delivery });
+  await talkTurn();
+}
+async function talkMic() {
+  const t = talk;
+  if (t.status === 'speaking') { TTS.cancel(); talkSetStatus('idle'); return; }
+  if (t.status === 'recording') { if (t.rec) t.rec.stop(); return; }
+  if (t.status !== 'idle') return;
+  try {
+    unlockAudio();
+    t.hints = null;
+    t.rec = await startRecorder(75, (s) => { const el = $('#status'); if (el) el.textContent = `● 녹음 중 ${s.toFixed(0)}초 — 다 말하면 ■ 를 누르세요`; });
+    talkSetStatus('recording');
+    const { blob, durationSec } = await t.rec.done;
+    t.rec = null;
+    if (durationSec < 0.8) { toast('너무 짧아요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
+    talkSetStatus('thinking');
+    const tr = await transcribe(blob, '');
+    if (!tr.speech_detected) { toast('목소리가 잘 안 들렸어요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
+    await talkSend(tr.transcript, { pronunciation_issues: tr.pronunciation_issues, delivery_ko: tr.delivery_ko });
+  } catch (e) { toast(e.message); t.rec = null; talkSetStatus('idle'); }
+}
+async function talkHint() {
+  if (talk.status !== 'idle') return;
+  talkSetStatus('thinking');
+  try {
+    const r = await api('/api/claude', { task: 'hint', scenario: talk.scenario, level: talk.level, messages: talk.msgs.map((m) => ({ role: m.role, content: m.content })) });
+    talk.hints = r.options || [];
+  } catch (e) { toast(e.message); }
+  talkSetStatus('idle');
+}
+async function talkEnd() {
+  TTS.cancel(); talkStopRec(); releaseMic();
+  const userTurns = talk.msgs.filter((m) => m.role === 'user').length;
+  if (userTurns < 1) { talk.phase = 'setup'; renderTalk(); return; }
+  talk.phase = 'review'; talk.review = null; renderTalk();
+  try {
+    talk.review = await api('/api/claude', { task: 'conv_review', scenario: talk.scenario, messages: talk.msgs.map((m) => ({ role: m.role, content: m.content })) });
+    addPhrases(talk.review.phrases);
+    addHistory({ kind: 'talk', scenario: talk.scenario, level: talk.level, turns: userTurns });
+  } catch (e) { toast(e.message); talk.phase = 'setup'; }
+  if (tab === 'talk') renderTalk();
+}
+
+/* ═══════════════ 토익스피킹 ═══════════════ */
+const TOEIC_TYPES = {
+  read_aloud: { label: 'Q1–2 Read a text aloud', desc: '지문 2개 소리 내어 읽기 · 발음/억양', max: 3, speakPrompt: false, items: [{ prep: 45, resp: 45 }, { prep: 45, resp: 45 }] },
+  respond: { label: 'Q4–6 Respond to questions', desc: '일상 질문 3개에 바로 답하기 (15·15·30초)', max: 3, speakPrompt: true, items: [{ prep: 0, resp: 15 }, { prep: 0, resp: 15 }, { prep: 0, resp: 30 }] },
+  info: { label: 'Q7–9 Using information', desc: '일정표를 보고 질문 3개에 답하기', max: 3, speakPrompt: true, reading: 45, items: [{ prep: 3, resp: 15 }, { prep: 3, resp: 15 }, { prep: 3, resp: 30 }] },
+  solution: { label: 'Q10 Propose a solution', desc: '음성메시지 듣고 해결책 제안 (준비 30초·답변 60초)', max: 5, listen: true, items: [{ prep: 30, resp: 60 }] },
+  opinion: { label: 'Q11 Express an opinion', desc: '의견 + 이유 + 예시 (준비 15초·답변 60초)', max: 5, speakPrompt: true, items: [{ prep: 15, resp: 60 }] },
+};
+const toeic = { phase: 'home', sess: null, result: null };
+
+function renderToeic() {
+  const t = toeic;
+  if (t.phase === 'home') {
+    view.innerHTML = `
+      <h1>토익스피킹 연습</h1>
+      <p class="sub">문제는 매번 AI가 새로 만들어요. 사진 묘사(Q3)는 아직 빠져 있어요.</p>
+      <label class="tg card" style="padding:10px 14px"><span><b>실전 모드</b><br><span class="sub">질문 텍스트를 숨기고 음성으로만 듣기</span></span><input type="checkbox" id="hideText" ${settings.hideText ? 'checked' : ''}></label>
+      ${Object.entries(TOEIC_TYPES).map(([k, v]) => `<button class="qcard" data-act="toeicStart" data-type="${k}"><b>${v.label}</b><span class="sub">${v.desc}</span></button>`).join('')}`;
+    const cb = $('#hideText');
+    if (cb) cb.onchange = () => { settings.hideText = cb.checked; saveSettings(); };
+    return;
+  }
+  if (t.phase === 'loading') { view.innerHTML = `<div class="card center"><span class="spin"></span><p>문제를 만드는 중…</p></div>`; return; }
+  if (t.phase === 'intro') {
+    const s = t.sess, cfg = s.cfg;
+    view.innerHTML = `
+      <h1>${cfg.label}</h1>
+      <div class="card"><b>${esc(s.set.title)}</b>
+        <p class="sub" style="margin:6px 0 0">${cfg.items.length}문항 · ${cfg.items.map((i) => (i.prep ? `준비 ${i.prep}초/` : '') + `답변 ${i.resp}초`).join(' → ')}${cfg.reading ? ` · 자료 읽기 ${cfg.reading}초` : ''}</p>
+        <p class="sub" style="margin:6px 0 0">시작하면 마이크 권한을 물어볼 수 있어요. 비프음이 울리면 말하세요.</p></div>
+      <button class="btn" data-act="toeicGo">시작</button>
+      <div style="height:8px"></div><button class="btn ghost" data-act="toeicHome">취소</button>`;
+    return;
+  }
+  if (t.phase === 'grading') { view.innerHTML = `<div class="card center"><span class="spin"></span><p>답변을 정리하고 채점하는 중…</p><p class="sub">10~20초 걸릴 수 있어요</p></div>`; return; }
+  if (t.phase === 'result') { renderResult(); return; }
+  if (t.phase === 'run') renderRun();
+}
+
+/* — 진행 화면 — */
+let runState = { stage: 'q', i: 0 };
+function renderRun() {
+  const s = toeic.sess, cfg = s.cfg, set = s.set, st = runState;
+  const item = set.items[st.i];
+  const hide = settings.hideText;
+  let body = '';
+  if (s.type === 'info' && st.stage === 'reading') body += `<div class="sub">${esc(set.context)}</div>`;
+  if (set.material && s.type === 'info') body += `<div class="pre" style="margin:8px 0">${esc(set.material)}</div>`;
+  if (s.type === 'solution') {
+    if (set.context) body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
+    if (st.stage === 'listen') body += `<div class="card center">🔊 메시지를 들려주는 중…</div>`;
+    if (!hide && st.stage !== 'listen') body += `<details><summary>메시지 스크립트 보기</summary><div class="pre">${esc(set.material)}</div></details>`;
+    if (!hide && st.stage === 'listen') body += `<div class="pre">${esc(set.material)}</div>`;
+  }
+  if (st.stage !== 'reading' && st.stage !== 'listen') {
+    if (s.type === 'respond' && st.i === 0 && set.context) body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
+    if (s.type === 'info' && st.i === 0 && set.context && st.stage !== 'reading') body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
+    const showText = s.type === 'read_aloud' || s.type === 'solution' || !hide;
+    body += `<div class="pre big">${showText ? esc(item.text) : '🎧 질문은 음성으로만 나와요'}</div>`;
+    if (st.stage === 'q' && cfg.speakPrompt) body += `<p class="center sub">🔊 질문을 읽어주는 중…</p>`;
+  }
+  let panel = '';
+  if (st.stage === 'reading') panel = `<div class="sub center">자료를 읽어 두세요</div>${timerHTML('자료 읽기')}<button class="btn sec" data-act="skip">바로 시작</button>`;
+  else if (st.stage === 'prep') panel = `${timerHTML('준비 시간')}<button class="btn sec" data-act="skip">바로 녹음</button>`;
+  else if (st.stage === 'rec') panel = `${timerHTML('● 녹음 중', true)}<button class="btn" style="background:var(--bad);color:#fff" data-act="stopRec">답변 끝내기</button>`;
+  view.innerHTML = `
+    <div class="rowb" style="margin-bottom:8px"><b>${cfg.label.split(' ')[0]}${st.stage === 'reading' || st.stage === 'listen' ? '' : ` · ${st.i + 1}/${set.items.length}`}</b><button class="link" data-act="abort">중단</button></div>
+    <div class="card">${body}</div>${panel ? `<div class="card">${panel}</div>` : ''}`;
+}
+function timerHTML(label, rec) {
+  return `<div class="sub center">${label}</div><div class="timer" id="cdNum">–</div><div class="bar ${rec ? 'rec' : ''}"><i id="cdBar"></i></div>`;
+}
+function updateCd(left, total) {
+  const n = $('#cdNum'), b = $('#cdBar');
+  if (n) n.textContent = Math.max(0, Math.ceil(left));
+  if (b) b.style.width = Math.max(0, Math.min(100, (left / total) * 100)) + '%';
+}
+function setRun(stage, i) { runState = { stage, i: i == null ? runState.i : i }; if (tab === 'toeic' && toeic.phase === 'run') renderRun(); }
+function checkCancel(s) { if (s.cancelled) throw new Error('cancelled'); }
+function countdown(s, sec) {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    updateCd(sec, sec);
+    const iv = setInterval(() => {
+      if (s.cancelled) { clearInterval(iv); return reject(new Error('cancelled')); }
+      const left = sec - (Date.now() - t0) / 1000;
+      updateCd(left, sec);
+      if (left <= 0) { clearInterval(iv); resolve(); }
+    }, 150);
+    s.skip = () => { clearInterval(iv); resolve(); };
+  });
+}
+async function recordFor(s, limit) {
+  const rec = await startRecorder(limit, (sec) => updateCd(limit - sec, limit));
+  s.stopRec = rec.stop;
+  updateCd(limit, limit);
+  const r = await rec.done;
+  s.stopRec = null;
+  return r;
+}
+function processAnswer(s, i, rec, limit, reference) {
+  return (async () => {
+    try {
+      if (rec.durationSec < 0.8) return { index: i, speech_detected: false, transcript: '', duration_sec: rec.durationSec, limit_sec: limit };
+      const tr = await transcribe(rec.blob, reference);
+      return { index: i, ...tr, duration_sec: rec.durationSec, limit_sec: limit };
+    } catch (e) {
+      return { index: i, error: e.message, speech_detected: false, transcript: '', duration_sec: rec.durationSec, limit_sec: limit };
+    }
+  })();
+}
+
+async function toeicStart(type) {
+  const s = { type, cfg: TOEIC_TYPES[type], set: null, cancelled: false, skip: null, stopRec: null, answers: [] };
+  toeic.sess = s;
+  toeic.phase = 'loading'; renderToeic();
+  try {
+    const set = await api('/api/claude', { task: 'toeic_generate', type });
+    if (toeic.sess !== s) return; // 생성 중 다른 탭으로 나간 경우
+    s.set = set;
+    toeic.phase = 'intro';
+  } catch (e) {
+    if (toeic.sess !== s) return;
+    toast(e.message); toeic.phase = 'home'; toeic.sess = null;
+  }
+  if (tab === 'toeic') renderToeic();
+}
+function abortToeic() {
+  const s = toeic.sess;
+  if (s) { s.cancelled = true; if (s.skip) s.skip(); if (s.stopRec) s.stopRec(); }
+  TTS.cancel(); releaseMic();
+  toeic.sess = null; toeic.phase = 'home';
+}
+async function toeicGo() {
+  const s = toeic.sess, cfg = s.cfg, set = s.set;
+  unlockAudio();
+  try { await getMic(); } catch (e) { toast(e.message); return; }
+  toeic.phase = 'run';
+  try {
+    if (s.type === 'info') { setRun('reading', 0); await countdown(s, cfg.reading); checkCancel(s); }
+    if (s.type === 'solution') { setRun('listen', 0); await TTS.speak(set.material); checkCancel(s); }
+    for (let i = 0; i < set.items.length; i++) {
+      const item = set.items[i], lim = cfg.items[i];
+      setRun('q', i);
+      if (cfg.speakPrompt) { await TTS.speak(item.text); checkCancel(s); }
+      if (lim.prep > 0) { setRun('prep', i); await countdown(s, lim.prep); checkCancel(s); }
+      await beep(); checkCancel(s);
+      setRun('rec', i);
+      const rec = await recordFor(s, lim.resp);
+      checkCancel(s);
+      s.answers[i] = processAnswer(s, i, rec, lim.resp, s.type === 'read_aloud' ? item.text : '');
+      await sleep(250);
+    }
+  } catch (e) {
+    if (e.message !== 'cancelled') toast(e.message);
+    if (toeic.sess === s) abortToeic();
+    if (tab === 'toeic') renderToeic();
+    return;
+  }
+  releaseMic();
+  toeic.phase = 'grading'; renderToeic();
+  try {
+    const answers = await Promise.all(s.answers);
+    const res = await api('/api/claude', {
+      task: 'toeic_evaluate', type: s.type,
+      set: { context: set.context, material: set.material, items: set.items },
+      answers: answers.map((a) => ({ speech_detected: a.speech_detected, transcript: a.transcript, duration_sec: a.duration_sec, limit_sec: a.limit_sec, delivery: { pronunciation_issues: a.pronunciation_issues, delivery_ko: a.delivery_ko, reference_diff: a.reference_diff } })),
+    });
+    toeic.result = { type: s.type, set, answers, res };
+    const sum = res.items.reduce((a, b) => a + b.score, 0), max = res.items.reduce((a, b) => a + b.max, 0);
+    addHistory({ kind: 'toeic', type: s.type, label: s.cfg.label, sum, max, confidence: res.confidence_pct });
+    toeic.phase = 'result';
+  } catch (e) { toast(e.message); toeic.phase = 'home'; }
+  toeic.sess = null;
+  if (tab === 'toeic') renderToeic();
+}
+
+function renderResult() {
+  const { type, set, answers, res } = toeic.result;
+  const cfg = TOEIC_TYPES[type];
+  const sum = res.items.reduce((a, b) => a + b.score, 0), max = res.items.reduce((a, b) => a + b.max, 0);
+  view.innerHTML = `
+    <h1>결과 · ${cfg.label.split(' ')[0]}</h1>
+    <div class="card">
+      <div class="rowb"><b style="font-size:22px">${sum} / ${max}</b><span class="badge">채점 신뢰도 약 ${res.confidence_pct}%</span></div>
+      <p style="margin:8px 0 0">${esc(res.overall_ko)}</p>
+      <p class="sub" style="margin:8px 0 0">※ 녹음이 아닌 인식된 텍스트와 AI의 발음 메모를 바탕으로 한 예상 점수예요. 실제 ETS 채점과는 차이가 있을 수 있어요.</p>
+    </div>
+    ${res.priorities_ko.length ? `<h2>🎯 우선 개선 포인트</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
+    ${res.items.map((it, i) => resultItem(it, answers[i] || {}, set.items[i], i)).join('')}
+    <button class="btn" data-act="toeicHome">다시 연습하기</button>`;
+  view.scrollTop = 0;
+}
+function resultItem(it, a, q, i) {
+  const ratio = it.score / it.max;
+  const cls = ratio >= 0.8 ? 'hi' : ratio <= 0.4 ? 'lo' : '';
+  const words = (a.transcript || '').trim() ? a.transcript.trim().split(/\s+/).length : 0;
+  const wpm = a.duration_sec > 2 ? Math.round(words / (a.duration_sec / 60)) : 0;
+  const d = a.pronunciation_issues || [];
+  return `<div class="card">
+    <div class="rowb"><b>Q${i + 1}</b><span class="badge ${cls}">${it.score} / ${it.max}</span></div>
+    <div class="sub" style="margin-top:6px">${esc(q.text).slice(0, 140)}${q.text.length > 140 ? '…' : ''}</div>
+    <div class="sub" style="margin-top:8px">AI가 들은 내 답변</div>
+    <div class="quote">${a.transcript ? esc(a.transcript) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
+    <div class="sub">⏱ ${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
+    ${it.strengths_ko.length ? `<div style="margin-top:8px"><b>👍 좋은 점</b><ul class="tight">${it.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    ${it.fixes_ko.length ? `<div><b>✏️ 고칠 점</b><ul class="tight">${it.fixes_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    ${it.pronunciation_ko || d.length || a.delivery_ko ? `<details><summary>🎙 발음·전달</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}${d.map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}${(a.reference_diff || []).length ? `<div class="sub" style="margin-top:4px">원문과 다른 부분: ${a.reference_diff.map(esc).join(', ')}</div>` : ''}</details>` : ''}
+    ${it.improved_answer ? `<details><summary>내 답변 다듬기</summary><div class="pre">${esc(it.improved_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.improved_answer)}">🔊 듣기</button></details>` : ''}
+    ${it.model_answer ? `<details><summary>모범 답안</summary><div class="pre">${esc(it.model_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.model_answer)}">🔊 듣기</button></details>` : ''}
+  </div>`;
+}
+
+/* ═══════════════ 기록 ═══════════════ */
+function renderLog() {
+  const h = history(), p = phrases();
+  const fmt = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  view.innerHTML = `
+    <h1>기록</h1>
+    <h2>연습 기록</h2>
+    ${h.length ? h.slice(0, 40).map((e) => `<div class="card rowb" style="padding:10px 14px"><div><b>${e.kind === 'toeic' ? '🎯 ' + esc(e.label) : '💬 ' + esc((SCENARIOS.find((s) => s.id === e.scenario) || {}).name || '회화')}</b><div class="sub">${fmt(e.date)}${e.kind === 'talk' ? ` · ${e.turns}턴` : ''}</div></div>${e.kind === 'toeic' ? `<span class="badge ${e.sum / e.max >= 0.8 ? 'hi' : e.sum / e.max <= 0.4 ? 'lo' : ''}">${e.sum}/${e.max}</span>` : ''}</div>`).join('') : '<p class="sub">아직 기록이 없어요.</p>'}
+    <h2>표현 노트 <span class="sub">(${p.length})</span></h2>
+    ${p.length ? p.slice(0, 80).map((x, i) => `<div class="card rowb" style="padding:10px 14px"><div style="flex:1"><b>${esc(x.en)}</b><div class="sub">${esc(x.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(x.en)}">🔊</button><button class="mini" data-act="delPhrase" data-i="${i}">✕</button></div>`).join('') : '<p class="sub">대화하면서 나온 유용한 표현이 여기에 쌓여요.</p>'}`;
+}
+
+/* ═══════════════ 설정 ═══════════════ */
+function renderSettings() {
+  TTS.load();
+  view.innerHTML = `
+    <h1>설정</h1>
+    <div class="card">
+      <b>음성 (영어 읽어주기)</b>
+      <div style="height:8px"></div>
+      <select id="voiceSel"><option value="">자동 선택</option>${TTS.voices.map((v) => `<option value="${esc(v.voiceURI)}" ${settings.voiceURI === v.voiceURI ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select>
+      <div style="height:12px"></div>
+      <div class="rowb"><span>속도</span><span class="sub" id="rateVal">${settings.rate.toFixed(2)}x</span></div>
+      <input type="range" id="rate" min="0.6" max="1.2" step="0.05" value="${settings.rate}">
+      <div style="height:8px"></div>
+      <button class="btn sec" data-act="say" data-text="Hello! Let's practice speaking English together.">🔊 들어보기</button>
+    </div>
+    <div class="card">
+      <b>기본 난이도 (회화)</b><div style="height:8px"></div>
+      <div class="seg">${LEVELS.map((l) => `<button class="${settings.level === l.id ? 'on' : ''}" data-act="defLvl" data-id="${l.id}">${l.name}</button>`).join('')}</div>
+    </div>
+    <div class="card">
+      <b>계정</b><p class="sub">비밀번호는 이 기기에만 저장돼요.</p>
+      <button class="btn sec" data-act="logout">비밀번호 다시 입력</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" data-act="wipe">기록·표현 노트 모두 지우기</button>
+    </div>`;
+  $('#voiceSel').onchange = (e) => { settings.voiceURI = e.target.value; saveSettings(); };
+  $('#rate').oninput = (e) => { settings.rate = +e.target.value; $('#rateVal').textContent = settings.rate.toFixed(2) + 'x'; saveSettings(); };
+}
+
+/* ───────────── 이벤트 ───────────── */
+document.addEventListener('click', (e) => {
+  const tabBtn = e.target.closest('#tabs button');
+  if (tabBtn) { go(tabBtn.dataset.tab); return; }
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const act = el.dataset.act, d = el.dataset;
+  switch (act) {
+    case 'scn': talk.scenario = d.id; renderTalk(); break;
+    case 'lvl': talk.level = d.id; renderTalk(); break;
+    case 'talkStart': talkStart(); break;
+    case 'talkNew': talk.phase = 'setup'; talk.msgs = []; renderTalk(); break;
+    case 'talkEnd': talkEnd(); break;
+    case 'mic': talkMic(); break;
+    case 'hint': talkHint(); break;
+    case 'hintClose': talk.hints = null; renderTalk(); break;
+    case 'typeToggle': talk.typing = !talk.typing; renderTalk(); if (talk.typing) setTimeout(() => { const i = $('#txt'); if (i) i.focus(); }, 30); break;
+    case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
+    case 'say': unlockAudio(); TTS.speak(d.text); break;
+    case 'toeicStart': toeicStart(d.type); break;
+    case 'toeicGo': toeicGo(); break;
+    case 'toeicHome': toeic.phase = 'home'; toeic.sess = null; renderToeic(); break;
+    case 'skip': if (toeic.sess && toeic.sess.skip) toeic.sess.skip(); break;
+    case 'stopRec': if (toeic.sess && toeic.sess.stopRec) toeic.sess.stopRec(); break;
+    case 'abort': abortToeic(); renderToeic(); break;
+    case 'delPhrase': { const p = phrases(); p.splice(+d.i, 1); store.set('ec_phrases', p); renderLog(); break; }
+    case 'defLvl': settings.level = d.id; talk.level = d.id; saveSettings(); renderSettings(); break;
+    case 'logout': password = ''; store.set('ec_pw', ''); showLogin(); break;
+    case 'wipe': if (confirm('기록과 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); toast('지웠어요'); } break;
+  }
+});
+
+$('#pwGo').onclick = async () => {
+  const v = $('#pw').value;
+  if (!v) return;
+  password = v;
+  try {
+    await api('/api/claude', { task: 'ping' });
+    store.set('ec_pw', v);
+    $('#login').classList.add('hidden');
+    $('#pw').value = '';
+    render();
+  } catch (e) { toast(e.message); }
+};
+$('#pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#pwGo').click(); });
+
+/* ───────────── 시작 ───────────── */
+document.querySelector('#tabs button[data-tab="talk"]').classList.add('on');
+render();
+if (!password) showLogin();
+})();
+</script>
+</body>
+</html>

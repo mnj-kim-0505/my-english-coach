@@ -1,0 +1,7 @@
+{
+  "name": "my-english-coach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "토익스피킹 + 일상 회화 AI 말하기 코치 (Claude + Gemini)",
+  "engines": { "node": ">=20" }
+}
