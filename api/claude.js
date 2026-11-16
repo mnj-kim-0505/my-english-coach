@@ -62,8 +62,22 @@ const CONV_TOOL = {
           needed: { type: 'boolean' },
           better: str('A corrected, more natural version of the ENTIRE last message in English, covering every sentence the learner said (keep their meaning and sentence count; do not drop or merge sentences). Empty string if not needed.'),
           note_ko: str('Korean explanation of every real fix, one to two sentences per fix (the wrong part, the right form, and why), at most 6 fixes, in the order of the learner\'s sentences, each naming the wrong part and the right form. Separate with newlines. Empty string if not needed.'),
+          marks: {
+            type: 'array',
+            description: 'Each wrong or improvable part of the learner\'s message, in order. Empty array if not needed. At most 8.',
+            items: {
+              type: 'object',
+              properties: {
+                text: str('The exact wrong/improvable words copied letter for letter from the learner\'s message (a short contiguous span, 1-6 words; Hangul parts count too)'),
+                type: { type: 'string', enum: ['grammar', 'expression'], description: 'grammar = a real grammar error (tense, article, preposition, agreement, word form, word order). expression = grammatically fine or Korean but unnatural/wrong word choice that a native would say differently.' },
+                fix: str('The corrected English for just that span'),
+                why_ko: str('Very short Korean reason (one sentence)'),
+              },
+              required: ['text', 'type', 'fix', 'why_ko'],
+            },
+          },
         },
-        required: ['needed', 'better', 'note_ko'],
+        required: ['needed', 'better', 'note_ko', 'marks'],
       },
       phrase: {
         type: 'object',
@@ -87,6 +101,7 @@ Rules:
 - correction.needed is true only if the fix would genuinely improve their English. If their sentence was fine, set needed=false and leave the strings empty. If there is no learner message yet (you are opening the conversation), needed=false.
 - If the learner writes Korean (Hangul), especially inside double quotes, it means they could not recall the English. Understand it and react to the meaning in your reply (never ask them to repeat it in English first). Then set correction.needed to true: in correction.better replace every Korean part with the natural English expression (use standard romanization for place names), and in note_ko give the English for each Korean part, e.g. "증평" → Jeungpyeong.
 - Check EVERY sentence in the learner's message, not just the first one. If any sentence has a real error, needed is true and the correction and notes must cover all of them.
+- marks: list every wrong or improvable part of the learner's message, in the order it appears. Each mark's "text" MUST be copied exactly, letter for letter, from the learner's message (a short contiguous span, 1-6 words, no surrounding punctuation unless part of the error). type "grammar" = a real grammar error (tense, article, preposition, subject-verb agreement, word form, word order, missing words). type "expression" = grammatically acceptable (or Korean) but unnatural or imprecise wording that a native speaker would phrase differently. Each Korean/Hangul part is an "expression" mark whose fix is the English. If correction.needed is false, marks is an empty array.
 - note_ko must be Korean, one to two sentences per distinct fix (what was wrong, the right form, and a brief why), at most 6 fixes, newline-separated.
 - phrase.en: one natural, reusable expression worth learning, copied EXACTLY (same words, same order, contiguous) from your own "reply" so it can be underlined there. Use empty strings if nothing in your reply is worth saving.`;
 }

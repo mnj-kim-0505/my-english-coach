@@ -57,6 +57,9 @@ input[type=range]{width:100%}
 .coach .qa .q{font-weight:600;margin-bottom:2px}
 .coach .ex{margin-top:6px}
 .coach .askBtn{margin-top:8px}
+.mk{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;cursor:pointer}
+.mk-g{text-decoration-color:#e06c6c}
+.mk-e{text-decoration-color:#5ea0e6}
 .ph{text-decoration:underline dotted;text-underline-offset:4px;cursor:pointer}
 .coach .askForm{margin-top:8px}
 .coach .askForm input{padding:9px 10px;font-size:14px}
@@ -139,7 +142,7 @@ function toast(msg) {
 }
 
 /* ───────────── 설정 ───────────── */
-const settings = Object.assign({ rate: 0.95, voiceURI: '', hideText: false, level: 'intermediate' }, store.get('ec_settings', {}));
+const settings = Object.assign({ autoRead: true, rate: 0.95, voiceURI: '', hideText: false, level: 'intermediate' }, store.get('ec_settings', {}));
 const saveSettings = () => store.set('ec_settings', settings);
 let password = store.get('ec_pw', '');
 
@@ -424,6 +427,34 @@ function recentHTML() {
 function statusText() {
   return { idle: '말하기 버튼을 누르세요', recording: '듣고 있어요… 끝나면 완료를 누르세요', thinking: '처리 중…', speaking: '재생 중 (중지 버튼으로 끄기)' }[talk.status] || '';
 }
+function markedHTML(m, i) {
+  const marks = m.correction && m.correction.needed && Array.isArray(m.correction.marks) ? m.correction.marks : [];
+  if (!marks.length) return { body: esc(m.content), panels: '', n: 0 };
+  const low = m.content.toLowerCase();
+  const found = [];
+  let from = 0;
+  marks.forEach((mk, k) => {
+    const t = String((mk && mk.text) || '').trim();
+    if (!t) return;
+    let pos = low.indexOf(t.toLowerCase(), from);
+    if (pos < 0) pos = low.indexOf(t.toLowerCase());
+    if (pos < 0) return;
+    const end = pos + t.length;
+    if (found.some((f) => pos < f.end && end > f.pos)) return;
+    found.push({ pos, end, k, mk });
+    from = end;
+  });
+  found.sort((a, b) => a.pos - b.pos);
+  let body = '', cur = 0, panels = '';
+  for (const f of found) {
+    const cls = f.mk.type === 'grammar' ? 'mk-g' : 'mk-e';
+    body += esc(m.content.slice(cur, f.pos)) + `<span class="mk ${cls}" data-act="markOpen" data-id="mk${i}_${f.k}">${esc(m.content.slice(f.pos, f.end))}</span>`;
+    cur = f.end;
+    panels += `<div class="coach hidden" id="mk${i}_${f.k}"><span class="sub">${f.mk.type === 'grammar' ? '문법' : '표현'}</span><b>${esc(f.mk.fix)}</b><div class="sub">${esc(f.mk.why_ko)}</div></div>`;
+  }
+  body += esc(m.content.slice(cur));
+  return { body, panels, n: found.length };
+}
 function msgHTML(m, i) {
   if (m.role === 'assistant') {
     let body = esc(m.content), panel = '';
@@ -435,11 +466,12 @@ function msgHTML(m, i) {
     }
     return `<div class="bubble ai">${body}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>${panel}`;
   }
+  const mk = markedHTML(m, i);
   let extra = '';
   if (m.correction) {
     if (m.correction.needed) {
       const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
-      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
+      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${mk.n ? '<div class="sub" style="margin-top:6px">내 문장의 <span class="mk mk-g" style="cursor:default">빨간 밑줄</span>은 문법, <span class="mk mk-e" style="cursor:default">파란 밑줄</span>은 표현이에요. 눌러서 확인하세요.</div>' : ''}<div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
     }
     else extra += `<div class="coach ok">자연스러워요</div>`;
   }
@@ -447,7 +479,7 @@ function msgHTML(m, i) {
   if (d && ((d.pronunciation_issues && d.pronunciation_issues.length) || d.delivery_ko)) {
     extra += `<details class="coach"><summary>발음·전달 메모</summary>${d.delivery_ko ? `<div>${esc(d.delivery_ko)}</div>` : ''}${(d.pronunciation_issues || []).map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}</details>`;
   }
-  return `<div class="bubble me">${esc(m.content)}</div>${extra}`;
+  return `<div class="bubble me">${mk.body}</div>${mk.panels}${extra}`;
 }
 function talkSetStatus(s) { talk.status = s; if (tab === 'talk' && talk.phase === 'chat') renderTalk(); }
 function talkStopRec() { if (talk.rec) { try { talk.rec.stop(); } catch {} talk.rec = null; } if (talk.status === 'recording') talk.status = 'idle'; }
@@ -473,8 +505,7 @@ async function talkStart() {
   unlockAudio();
   talk.id = 'c' + Date.now(); talk.msgs = []; talk.phase = 'chat'; talk.hints = null; talk.review = null; talk.typing = false;
   talk.msgs.push({ role: 'assistant', content: pickOpener(talk.scenario) });
-  talkSetStatus('speaking');
-  await TTS.speak(talk.msgs[0].content);
+  if (settings.autoRead !== false) { talkSetStatus('speaking'); await TTS.speak(talk.msgs[0].content); }
   if (talk.status !== 'recording') talkSetStatus('idle');
 }
 async function talkResume(id, toReview) {
@@ -496,8 +527,7 @@ async function talkTurn() {
     talk.msgs.push({ role: 'assistant', content: res.reply });
     talk.msgs[talk.msgs.length - 1].phrase = res.phrase && res.phrase.en ? res.phrase : null;
     persistTalk();
-    talkSetStatus('speaking');
-    await TTS.speak(res.reply);
+    if (settings.autoRead !== false) { talkSetStatus('speaking'); await TTS.speak(res.reply); }
   } catch (e) { toast(e.message); }
   if (talk.status !== 'recording') talkSetStatus('idle');
 }
@@ -802,6 +832,9 @@ function renderSettings() {
       <button class="btn sec" data-act="say" data-text="Hello! Let's practice speaking English together.">들어보기</button>
     </div>
     <div class="card">
+      <label class="tg" style="padding:0"><span><b>AI 말 자동 읽어주기</b><br><span class="sub">끄면 회화에서 소리가 나지 않아요. 필요할 때 '다시 듣기'로 들을 수 있어요. 토스 연습의 문제 음성은 계속 나와요.</span></span><input type="checkbox" id="autoRead" ${settings.autoRead !== false ? 'checked' : ''}></label>
+    </div>
+    <div class="card">
       <b>기본 난이도 (회화)</b><div style="height:8px"></div>
       <div class="seg">${LEVELS.map((l) => `<button class="${settings.level === l.id ? 'on' : ''}" data-act="defLvl" data-id="${l.id}">${l.name}</button>`).join('')}</div>
     </div>
@@ -811,6 +844,7 @@ function renderSettings() {
       <div style="height:8px"></div>
       <button class="btn ghost" data-act="wipe">대화·기록·표현 노트 모두 지우기</button>
     </div>`;
+  $('#autoRead').onchange = (e) => { settings.autoRead = e.target.checked; saveSettings(); if (!settings.autoRead) TTS.cancel(); };
   $('#voiceSel').onchange = (e) => { settings.voiceURI = e.target.value; saveSettings(); };
   $('#rate').oninput = (e) => { settings.rate = +e.target.value; $('#rateVal').textContent = settings.rate.toFixed(2) + 'x'; saveSettings(); };
 }
@@ -837,6 +871,7 @@ document.addEventListener('click', (e) => {
     case 'convOpen': talkResume(d.id, false); break;
     case 'convReview': talkResume(d.id, true); break;
     case 'convDel': if (confirm('이 대화를 지울까요?')) { store.set('ec_convs', convs().filter((c) => c.id !== d.id)); renderTalk(); } break;
+    case 'markOpen': { const pn = document.getElementById(d.id); if (pn) pn.classList.toggle('hidden'); break; }
     case 'phraseOpen': { const pn = document.getElementById('ph' + d.i); if (pn) pn.classList.toggle('hidden'); break; }
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
