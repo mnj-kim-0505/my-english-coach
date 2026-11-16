@@ -452,11 +452,30 @@ function msgHTML(m, i) {
 function talkSetStatus(s) { talk.status = s; if (tab === 'talk' && talk.phase === 'chat') renderTalk(); }
 function talkStopRec() { if (talk.rec) { try { talk.rec.stop(); } catch {} talk.rec = null; } if (talk.status === 'recording') talk.status = 'idle'; }
 
+const OPENERS = {
+  free: ["Hi! What's something you're looking forward to this week?", "Hey there. How was your day so far?", "Hello! What did you do last weekend?", "Hi! If you could take tomorrow off, what would you do?", "Hey! Have you watched or read anything interesting lately?", "Hi there. What's been on your mind today?"],
+  smalltalk: ["How's the weather where you are today?", "How was your lunch? Did you try anything new?", "Do you have any hobbies you enjoy on the weekends?", "What's your favorite way to relax after a long day?", "Do you usually cook at home or eat out?", "What's the best thing that happened to you this week?"],
+  work: ["Hi! Can you tell me a little about what you do at work?", "What's the most challenging part of your project right now?", "How would you explain your job to someone outside your field?", "What does a typical day look like for you at work?", "Is there anything at work you're excited about this month?"],
+  cafe: ["Hi, welcome in! What can I get started for you today?", "Good afternoon! Are you ready to order, or do you need a minute?", "Hi there! Is this your first time here? Can I recommend something?", "Welcome! Would you like to see the menu, or do you already know what you'd like?"],
+  travel: ["Hi! Where was the last place you traveled to?", "If you could go anywhere next month, where would you go?", "Welcome to the hotel! Do you have a reservation with us?", "Hi, are you traveling for business or for fun?", "Excuse me, you look a bit lost. Can I help you find something?"],
+  service: ["Thank you for calling customer service. How can I help you today?", "Hi, I understand there's an issue with your order. What happened?", "Good morning! How may I assist you today?", "Hello, you've reached support. Could you tell me what the problem is?"],
+  interview: ["Thanks for coming in today. Could you start by introducing yourself?", "What made you interested in this position?", "Can you tell me about a project you're proud of?", "What would you say is your greatest strength?", "Where do you see yourself in five years?"],
+};
+function pickOpener(scn) {
+  const pool = OPENERS[scn] || OPENERS.free;
+  const last = store.get('ec_last_open', {});
+  let i = Math.floor(Math.random() * pool.length);
+  if (pool.length > 1 && i === last[scn]) i = (i + 1 + Math.floor(Math.random() * (pool.length - 1))) % pool.length;
+  last[scn] = i; store.set('ec_last_open', last);
+  return pool[i];
+}
 async function talkStart() {
   unlockAudio();
   talk.id = 'c' + Date.now(); talk.msgs = []; talk.phase = 'chat'; talk.hints = null; talk.review = null; talk.typing = false;
-  renderTalk();
-  await talkTurn();
+  talk.msgs.push({ role: 'assistant', content: pickOpener(talk.scenario) });
+  talkSetStatus('speaking');
+  await TTS.speak(talk.msgs[0].content);
+  if (talk.status !== 'recording') talkSetStatus('idle');
 }
 async function talkResume(id, toReview) {
   const c = convs().find((x) => x.id === id);
