@@ -66,40 +66,56 @@ function handle(fn) {
   };
 }
 
-// Claude를 "tool 호출 강제" 방식으로 불러서 항상 유효한 JSON을 받아요
+// Claude에게 tool을 호출하게 해서 항상 JSON 형태의 답을 받아요.
+// Haiku는 tool 강제(forced) 호출을 지원하지만, Sonnet 5.5 이상은 강제 호출을 거부(400)해요.
+// 그래서 강제를 못 쓰는 모델은 tool_choice:auto + 프롬프트 지시로 호출시키고,
+// 모델이 거부하면 자동으로 설정을 바꿔서 다시 시도해요.
 async function callClaude({ model, system, messages, tool, maxTokens = 1500 }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new HttpError(500, '서버에 ANTHROPIC_API_KEY 환경변수가 설정되어 있지 않아요.');
-  let r;
-  try {
-    r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        system,
-        messages,
-        tools: [tool],
-        tool_choice: { type: 'tool', name: tool.name },
-      }),
-      signal: AbortSignal.timeout(55000),
-    });
-  } catch (e) {
-    throw new HttpError(504, 'Claude 응답이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.');
+  const isHaiku = /haiku/i.test(model);
+  let forced = isHaiku; // 강제 tool 호출 시도 여부
+  let thinking = !isHaiku; // 큰 모델은 생각을 최소 설정으로 (속도·토큰 절약)
+  let msgs = messages;
+  let nudged = false;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const body = {
+      model,
+      max_tokens: maxTokens,
+      system: forced ? system : `${system}\n\nIMPORTANT: Respond ONLY by calling the "${tool.name}" tool with your complete answer. Do not write any other text.`,
+      messages: msgs,
+      tools: [tool],
+      tool_choice: forced ? { type: 'tool', name: tool.name } : { type: 'auto' },
+    };
+    if (thinking) body.thinking = { type: 'between_tools' };
+    let r;
+    try {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(55000),
+      });
+    } catch (e) {
+      throw new HttpError(504, 'Claude 응답이 너무 오래 걸려요. 잠시 후 다시 시도해 주세요.');
+    }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = data && data.error && data.error.message ? data.error.message : 'unknown';
+      if (r.status === 400 && forced && /tool_choice/i.test(msg)) { forced = false; continue; }
+      if (r.status === 400 && thinking && /thinking/i.test(msg)) { thinking = false; continue; }
+      throw new HttpError(502, `Claude API 오류 (${r.status}): ${msg}`);
+    }
+    const block = (data.content || []).find((b) => b.type === 'tool_use');
+    if (block && block.input) return block.input;
+    if (!forced && !nudged) {
+      nudged = true;
+      msgs = [...messages, { role: 'user', content: `(Call the ${tool.name} tool now with your complete answer.)` }];
+      continue;
+    }
+    throw new HttpError(502, 'Claude 응답 형식이 올바르지 않아요.');
   }
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const msg = data && data.error && data.error.message ? data.error.message : 'unknown';
-    throw new HttpError(502, `Claude API 오류 (${r.status}): ${msg}`);
-  }
-  const block = (data.content || []).find((b) => b.type === 'tool_use');
-  if (!block || !block.input) throw new HttpError(502, 'Claude 응답 형식이 올바르지 않아요.');
-  return block.input;
+  throw new HttpError(502, 'Claude 응답 형식이 올바르지 않아요.');
 }
 
 function parseJsonLoose(text) {
