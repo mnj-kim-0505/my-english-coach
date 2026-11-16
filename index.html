@@ -317,6 +317,17 @@ function addPhrases(list) {
   store.set('ec_phrases', cur.slice(0, 300));
 }
 
+const MAX_CONVS = 10;
+const convs = () => store.get('ec_convs', []);
+const fmtDate = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function persistTalk() {
+  if (!talk.id) return;
+  const msgs = talk.msgs.map((m) => { const c = { ...m }; delete c.askBusy; delete c.askOpen; return c; });
+  if (!msgs.some((m) => m.role === 'user')) return;
+  const list = convs().filter((c) => c.id !== talk.id);
+  list.unshift({ id: talk.id, scenario: talk.scenario, level: talk.level, msgs, review: talk.review || null, updated: new Date().toISOString() });
+  store.set('ec_convs', list.slice(0, MAX_CONVS));
+}
 const isSaved = (en) => phrases().some((x) => x.en.toLowerCase() === String(en || '').trim().toLowerCase());
 const saveBtn = (en, ko) => (isSaved(en) ? '<button class="mini" disabled>저장됨</button>' : `<button class="mini" data-act="savePhrase" data-en="${esc(en)}" data-ko="${esc(ko)}">노트에 저장</button>`);
 
@@ -359,7 +370,8 @@ function renderTalk() {
       <h2>난이도</h2>
       <div class="seg">${LEVELS.map((l) => `<button class="${t.level === l.id ? 'on' : ''}" data-act="lvl" data-id="${l.id}">${l.name}</button>`).join('')}</div>
       <div style="height:18px"></div>
-      <button class="btn" data-act="talkStart">대화 시작</button>`;
+      <button class="btn" data-act="talkStart">대화 시작</button>
+      ${recentHTML()}`;
     return;
   }
   if (t.phase === 'review') {
@@ -397,6 +409,16 @@ function renderTalk() {
   const f = $('#txtForm');
   if (f) f.onsubmit = (e) => { e.preventDefault(); const v = $('#txt').value.trim(); if (v) { $('#txt').value = ''; talkSend(v, null); } };
 }
+function recentHTML() {
+  const list = convs();
+  if (!list.length) return '';
+  return `<h2>최근 대화 <span class="sub">(최대 ${MAX_CONVS}개, 이 기기에만 저장)</span></h2>` + list.map((c) => {
+    const sc = (SCENARIOS.find((x) => x.id === c.scenario) || {}).name || '회화';
+    const turns = c.msgs.filter((m) => m.role === 'user').length;
+    const last = [...c.msgs].reverse().find((m) => m.role === 'user');
+    return `<div class="card" style="padding:10px 12px"><div class="rowb"><b>${esc(sc)}</b><span class="sub">${fmtDate(c.updated)} · ${turns}턴</span></div><div class="sub" style="margin:4px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(last ? last.content : '')}</div><div class="row"><button class="mini" data-act="convOpen" data-id="${esc(c.id)}">이어하기</button>${c.review ? `<button class="mini" data-act="convReview" data-id="${esc(c.id)}">리뷰 보기</button>` : ''}<button class="mini" data-act="convDel" data-id="${esc(c.id)}">삭제</button></div></div>`;
+  }).join('');
+}
 function statusText() {
   return { idle: '말하기 버튼을 누르세요', recording: '듣고 있어요… 끝나면 완료를 누르세요', thinking: '처리 중…', speaking: '재생 중 (중지 버튼으로 끄기)' }[talk.status] || '';
 }
@@ -424,9 +446,19 @@ function talkStopRec() { if (talk.rec) { try { talk.rec.stop(); } catch {} talk.
 
 async function talkStart() {
   unlockAudio();
-  talk.msgs = []; talk.phase = 'chat'; talk.hints = null; talk.review = null; talk.typing = false;
+  talk.id = 'c' + Date.now(); talk.msgs = []; talk.phase = 'chat'; talk.hints = null; talk.review = null; talk.typing = false;
   renderTalk();
   await talkTurn();
+}
+async function talkResume(id, toReview) {
+  const c = convs().find((x) => x.id === id);
+  if (!c) return;
+  unlockAudio();
+  talk.id = c.id; talk.scenario = c.scenario; talk.level = c.level; talk.msgs = c.msgs; talk.review = c.review || null;
+  talk.hints = null; talk.typing = false; talk.status = 'idle';
+  talk.phase = toReview && talk.review ? 'review' : 'chat';
+  renderTalk();
+  if (talk.phase === 'chat' && talk.msgs.length && talk.msgs[talk.msgs.length - 1].role === 'user') await talkTurn();
 }
 async function talkTurn() {
   talkSetStatus('thinking');
@@ -436,6 +468,7 @@ async function talkTurn() {
     if (lastUser && talk.msgs[talk.msgs.length - 1] === lastUser) lastUser.correction = res.correction;
     talk.msgs.push({ role: 'assistant', content: res.reply });
     talk.msgs[talk.msgs.length - 1].phrase = res.phrase && res.phrase.en ? res.phrase : null;
+    persistTalk();
     talkSetStatus('speaking');
     await TTS.speak(res.reply);
   } catch (e) { toast(e.message); }
@@ -444,6 +477,7 @@ async function talkTurn() {
 async function talkSend(text, delivery) {
   talk.hints = null;
   talk.msgs.push({ role: 'user', content: text, delivery });
+  persistTalk();
   await talkTurn();
 }
 async function talkMic() {
@@ -475,6 +509,7 @@ async function talkAsk(i, question) {
     (m.qa = m.qa || []).push({ q: question.trim(), a: r.answer_ko, examples: r.examples || [] });
   } catch (e) { toast(e.message); }
   m.askBusy = false;
+  persistTalk();
   if (tab === 'talk' && talk.phase === 'chat') { renderTalk(); const f = document.querySelector(`.askForm[data-i="${i}"] input`); if (f) f.focus(); }
 }
 async function talkHint() {
@@ -494,6 +529,7 @@ async function talkEnd() {
   try {
     talk.review = await api('/api/claude', { task: 'conv_review', scenario: talk.scenario, messages: talk.msgs.map((m) => ({ role: m.role, content: m.content })) });
     addHistory({ kind: 'talk', scenario: talk.scenario, level: talk.level, turns: userTurns });
+    persistTalk();
   } catch (e) { toast(e.message); talk.phase = 'setup'; }
   if (tab === 'talk') renderTalk();
 }
@@ -746,7 +782,7 @@ function renderSettings() {
       <b>계정</b><p class="sub">비밀번호는 이 기기에만 저장돼요.</p>
       <button class="btn sec" data-act="logout">비밀번호 다시 입력</button>
       <div style="height:8px"></div>
-      <button class="btn ghost" data-act="wipe">기록·표현 노트 모두 지우기</button>
+      <button class="btn ghost" data-act="wipe">대화·기록·표현 노트 모두 지우기</button>
     </div>`;
   $('#voiceSel').onchange = (e) => { settings.voiceURI = e.target.value; saveSettings(); };
   $('#rate').oninput = (e) => { settings.rate = +e.target.value; $('#rateVal').textContent = settings.rate.toFixed(2) + 'x'; saveSettings(); };
@@ -771,6 +807,9 @@ document.addEventListener('click', (e) => {
     case 'typeToggle': talk.typing = !talk.typing; renderTalk(); if (talk.typing) setTimeout(() => { const i = $('#txt'); if (i) i.focus(); }, 30); break;
     case 'askToggle': { const m = talk.msgs[+d.i]; if (m) { m.askOpen = true; renderTalk(); const f = document.querySelector(`.askForm[data-i="${d.i}"] input`); if (f) f.focus(); } break; }
     case 'savePhrase': addPhrases([{ en: d.en, ko: d.ko }]); el.textContent = '저장됨'; el.disabled = true; el.removeAttribute('data-act'); toast('노트에 저장했어요'); break;
+    case 'convOpen': talkResume(d.id, false); break;
+    case 'convReview': talkResume(d.id, true); break;
+    case 'convDel': if (confirm('이 대화를 지울까요?')) { store.set('ec_convs', convs().filter((c) => c.id !== d.id)); renderTalk(); } break;
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
     case 'toeicStart': toeicStart(d.type); break;
@@ -782,7 +821,7 @@ document.addEventListener('click', (e) => {
     case 'delPhrase': { const p = phrases(); p.splice(+d.i, 1); store.set('ec_phrases', p); renderLog(); break; }
     case 'defLvl': settings.level = d.id; talk.level = d.id; saveSettings(); renderSettings(); break;
     case 'logout': password = ''; store.set('ec_pw', ''); showLogin(); break;
-    case 'wipe': if (confirm('기록과 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); toast('지웠어요'); } break;
+    case 'wipe': if (confirm('저장된 대화, 기록, 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); store.set('ec_convs', []); toast('지웠어요'); } break;
   }
 });
 
