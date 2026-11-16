@@ -875,26 +875,50 @@ function renderResult() {
       <p style="margin:8px 0 0">${esc(res.overall_ko)}</p>
       <p class="sub" style="margin:8px 0 0">※ 녹음이 아닌 인식된 텍스트와 AI의 발음 메모를 바탕으로 한 예상 점수예요. 실제 ETS 채점과는 차이가 있을 수 있어요.</p>
     </div>
-    ${res.priorities_ko.length ? `<h2>우선 개선 포인트</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
-    ${res.items.map((it, i) => resultItem(it, answers[i] || {}, set.items[i], i)).join('')}
+    ${res.items.map((it, i) => resultItem(it, answers[i] || {}, set.items[i], i, type)).join('')}
+    ${res.priorities_ko.length ? `<h2>선생님 핵심 요약</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
     <button class="btn" data-act="toeicHome">다시 연습하기</button>`;
   view.scrollTop = 0;
 }
-function resultItem(it, a, q, i) {
+function speechMarked(text, issues) {
+  const spans = [];
+  for (const it of issues || []) {
+    const w = String(it.word || '').trim();
+    if (!w) continue;
+    const re = new RegExp('(^|[^A-Za-z\\u00C0-\\u024F\'])(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z\\u00C0-\\u024F\'])', 'gi');
+    let m;
+    while ((m = re.exec(text))) {
+      const a = m.index + m[1].length, b = a + m[2].length;
+      if (!spans.some((x) => a < x.b && b > x.a)) spans.push({ a, b, type: it.type });
+    }
+  }
+  spans.sort((x, y) => x.a - y.a);
+  let out = '', pos = 0;
+  for (const sp of spans) {
+    out += esc(text.slice(pos, sp.a)) + `<span class="mk ${sp.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(text.slice(sp.a, sp.b))}</span>`;
+    pos = sp.b;
+  }
+  return out + esc(text.slice(pos));
+}
+function resultItem(it, a, q, i, type) {
   const ratio = it.score / it.max;
   const cls = ratio >= 0.8 ? 'hi' : ratio <= 0.4 ? 'lo' : '';
   const words = (a.transcript || '').trim() ? a.transcript.trim().split(/\s+/).length : 0;
   const wpm = a.duration_sec > 2 ? Math.round(words / (a.duration_sec / 60)) : 0;
   const d = a.pronunciation_issues || [];
+  const isRead = type === 'read_aloud';
+  const issueLis = d.map((p) => `<li><span class="mk ${p.type === 'stress' ? 'mk-e' : 'mk-g'} fx">${esc(p.word)}</span> – ${esc(p.issue_ko)} <button class="mini" data-act="say" data-text="${esc(p.word)}">듣기</button></li>`).join('');
+  const fixLis = (it.fixes_ko || []).map((x) => `<li>${esc(x)}</li>`).join('');
+  const shown = isRead ? q.text : a.transcript;
   return `<div class="card">
     <div class="rowb"><b>Q${i + 1}</b><span class="badge ${cls}">${it.score} / ${it.max}</span></div>
-    <div class="sub" style="margin-top:6px">${esc(q.text).slice(0, 140)}${q.text.length > 140 ? '…' : ''}</div>
-    <div class="sub" style="margin-top:8px">AI가 들은 내 답변</div>
-    <div class="quote">${a.transcript ? esc(a.transcript) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
+    <div class="sub" style="margin-top:8px">${isRead ? '읽은 지문' : 'AI가 들은 내 답변'}</div>
+    <div class="quote">${shown ? speechMarked(shown, d) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
     <div class="sub">${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
+    ${isRead && a.transcript ? `<details><summary>AI가 들은 내 낭독</summary><div class="quote">${esc(a.transcript)}</div></details>` : ''}
     ${it.strengths_ko.length ? `<div style="margin-top:8px"><b>좋은 점</b><ul class="tight">${it.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    ${it.fixes_ko.length ? `<div><b>고칠 점</b><ul class="tight">${it.fixes_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    ${it.pronunciation_ko || d.length || a.delivery_ko ? `<details><summary>발음·전달</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}${d.map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}${(a.reference_diff || []).length ? `<div class="sub" style="margin-top:4px">원문과 다른 부분: ${a.reference_diff.map(esc).join(', ')}</div>` : ''}</details>` : ''}
+    ${issueLis || fixLis ? `<div><b>고칠 점</b><ul class="tight">${issueLis}${fixLis}</ul></div>` : ''}
+    ${a.delivery_ko || it.pronunciation_ko ? `<details><summary>전체 느낌</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}</details>` : ''}
     ${it.improved_answer ? `<details><summary>내 답변 다듬기</summary><div class="pre">${esc(it.improved_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.improved_answer)}">듣기</button></details>` : ''}
     ${it.model_answer ? `<details><summary>모범 답안</summary><div class="pre">${esc(it.model_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.model_answer)}">듣기</button></details>` : ''}
   </div>`;
