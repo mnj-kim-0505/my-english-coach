@@ -57,6 +57,7 @@ input[type=range]{width:100%}
 .coach .qa .q{font-weight:600;margin-bottom:2px}
 .coach .ex{margin-top:6px}
 .coach .askBtn{margin-top:8px}
+.ph{text-decoration:underline dotted;text-underline-offset:4px;cursor:pointer}
 .coach .askForm{margin-top:8px}
 .coach .askForm input{padding:9px 10px;font-size:14px}
 .coach b{display:block;margin-bottom:2px}
@@ -424,8 +425,14 @@ function statusText() {
 }
 function msgHTML(m, i) {
   if (m.role === 'assistant') {
-    const ph = m.phrase && m.phrase.en ? `<div class="coach" style="align-self:flex-start"><b>이 표현 어때요?</b>${esc(m.phrase.en)}<div class="sub">${esc(m.phrase.ko)}</div><div style="margin-top:6px">${saveBtn(m.phrase.en, m.phrase.ko)}</div></div>` : '';
-    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>${ph}`;
+    let body = esc(m.content), panel = '';
+    const pe = m.phrase && m.phrase.en ? m.phrase.en.trim() : '';
+    const at = pe ? m.content.toLowerCase().indexOf(pe.toLowerCase()) : -1;
+    if (at >= 0) {
+      body = esc(m.content.slice(0, at)) + `<span class="ph" data-act="phraseOpen" data-i="${i}">${esc(m.content.slice(at, at + pe.length))}</span>` + esc(m.content.slice(at + pe.length));
+      panel = `<div class="coach hidden" id="ph${i}" style="align-self:flex-start"><b>${esc(m.content.slice(at, at + pe.length))}</b><div class="sub">${esc(m.phrase.ko)}</div><div style="margin-top:6px">${saveBtn(m.content.slice(at, at + pe.length), m.phrase.ko)}</div></div>`;
+    }
+    return `<div class="bubble ai">${body}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>${panel}`;
   }
   let extra = '';
   if (m.correction) {
@@ -810,6 +817,7 @@ document.addEventListener('click', (e) => {
     case 'convOpen': talkResume(d.id, false); break;
     case 'convReview': talkResume(d.id, true); break;
     case 'convDel': if (confirm('이 대화를 지울까요?')) { store.set('ec_convs', convs().filter((c) => c.id !== d.id)); renderTalk(); } break;
+    case 'phraseOpen': { const pn = document.getElementById('ph' + d.i); if (pn) pn.classList.toggle('hidden'); break; }
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
     case 'toeicStart': toeicStart(d.type); break;

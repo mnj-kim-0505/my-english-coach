@@ -67,7 +67,7 @@ const CONV_TOOL = {
       },
       phrase: {
         type: 'object',
-        properties: { en: str('One useful reusable expression, or empty string'), ko: str('Korean meaning, or empty string') },
+        properties: { en: str('One useful reusable expression copied EXACTLY, letter for letter, from your "reply" text (a contiguous chunk of 2-6 words), or empty string'), ko: str('Korean meaning, or empty string') },
         required: ['en', 'ko'],
       },
     },
@@ -86,7 +86,7 @@ Rules:
 - The learner's messages are speech transcripts: ignore punctuation, capitalization and filler words. Only flag real grammar errors, wrong word choice, or clearly unnatural phrasing.
 - correction.needed is true only if the fix would genuinely improve their English. If their sentence was fine, set needed=false and leave the strings empty. If there is no learner message yet (you are opening the conversation), needed=false.
 - note_ko must be Korean, at most 2 short sentences.
-- phrase: one natural expression worth learning from this turn (from your reply or a better way to say their idea), or empty strings.`;
+- phrase.en: one natural, reusable expression worth learning, copied EXACTLY (same words, same order, contiguous) from your own "reply" so it can be underlined there. Use empty strings if nothing in your reply is worth saving.`;
 }
 
 async function conversation(body) {
