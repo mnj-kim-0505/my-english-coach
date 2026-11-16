@@ -57,7 +57,8 @@ input[type=range]{width:100%}
 .coach .qa .q{font-weight:600;margin-bottom:2px}
 .coach .ex{margin-top:6px}
 .coach .askBtn{margin-top:8px}
-.mk{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;cursor:pointer}
+.mk{text-decoration:underline dotted;text-decoration-thickness:2px;text-underline-offset:4px;cursor:pointer}
+.mk.fx{cursor:default}
 .mk-g{text-decoration-color:#e06c6c}
 .mk-e{text-decoration-color:#5ea0e6}
 .ph{text-decoration:underline dotted;text-underline-offset:4px;cursor:pointer}
@@ -429,7 +430,7 @@ function statusText() {
 }
 function markedHTML(m, i) {
   const marks = m.correction && m.correction.needed && Array.isArray(m.correction.marks) ? m.correction.marks : [];
-  if (!marks.length) return { body: esc(m.content), panels: '', n: 0 };
+  if (!marks.length) return { body: esc(m.content), panels: '', n: 0, better: esc(String((m.correction && m.correction.better) || '')) };
   const low = m.content.toLowerCase();
   const found = [];
   let from = 0;
@@ -453,7 +454,41 @@ function markedHTML(m, i) {
     panels += `<div class="coach hidden" id="mk${i}_${f.k}"><span class="sub">${f.mk.type === 'grammar' ? '문법' : '표현'}</span><b>${esc(f.mk.fix)}</b><div class="sub">${esc(f.mk.why_ko)}</div></div>`;
   }
   body += esc(m.content.slice(cur));
-  return { body, panels, n: found.length };
+  // 교정 문장 안에서 같은 부분(fix)을 같은 색으로 표시
+  const better = String(m.correction.better || '');
+  const bl = better.toLowerCase();
+  const isW = (c) => /[A-Za-z0-9']/.test(c || '');
+  const bf = [];
+  let bfrom = 0;
+  for (const f of found) {
+    const t = String(f.mk.fix || '').trim();
+    if (!t) continue;
+    const tl = t.toLowerCase();
+    const pick = (start) => {
+      let at = bl.indexOf(tl, start);
+      while (at >= 0) {
+        const e = at + t.length;
+        const okL = !isW(t[0]) || !isW(better[at - 1]);
+        const okR = !isW(t[t.length - 1]) || !isW(better[e]);
+        if (okL && okR && !bf.some((x) => at < x.end && e > x.pos)) return at;
+        at = bl.indexOf(tl, at + 1);
+      }
+      return -1;
+    };
+    let at = pick(bfrom);
+    if (at < 0) at = pick(0);
+    if (at < 0) continue;
+    bf.push({ pos: at, end: at + t.length, type: f.mk.type });
+    bfrom = at + t.length;
+  }
+  bf.sort((a, b) => a.pos - b.pos);
+  let betterHTML = '', bc = 0;
+  for (const x of bf) {
+    betterHTML += esc(better.slice(bc, x.pos)) + `<span class="mk fx ${x.type === 'grammar' ? 'mk-g' : 'mk-e'}">${esc(better.slice(x.pos, x.end))}</span>`;
+    bc = x.end;
+  }
+  betterHTML += esc(better.slice(bc));
+  return { body, panels, n: found.length, better: betterHTML };
 }
 function msgHTML(m, i) {
   if (m.role === 'assistant') {
@@ -471,7 +506,7 @@ function msgHTML(m, i) {
   if (m.correction) {
     if (m.correction.needed) {
       const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
-      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${mk.n ? '<div class="sub" style="margin-top:6px">내 문장의 <span class="mk mk-g" style="cursor:default">빨간 밑줄</span>은 문법, <span class="mk mk-e" style="cursor:default">파란 밑줄</span>은 표현이에요. 눌러서 확인하세요.</div>' : ''}<div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
+      extra += `<div class="coach"><b>더 자연스럽게</b>${mk.better}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
     }
     else extra += `<div class="coach ok">자연스러워요</div>`;
   }
