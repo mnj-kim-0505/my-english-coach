@@ -60,8 +60,8 @@ const CONV_TOOL = {
         type: 'object',
         properties: {
           needed: { type: 'boolean' },
-          better: str('A more natural/correct version of the learner\'s last message, in English. Empty string if not needed.'),
-          note_ko: str('Korean explanation of the key fix, max 2 short sentences. Empty string if not needed.'),
+          better: str('A corrected, more natural version of the ENTIRE last message in English, covering every sentence the learner said (keep their meaning and sentence count; do not drop or merge sentences). Empty string if not needed.'),
+          note_ko: str('Korean explanation of every real fix, one short sentence per fix, at most 4, in the order of the learner\'s sentences, each naming the wrong part and the right form. Separate with newlines. Empty string if not needed.'),
         },
         required: ['needed', 'better', 'note_ko'],
       },
@@ -85,7 +85,8 @@ Rules:
 - React to what the learner said, then keep the conversation moving (usually with one question).
 - The learner's messages are speech transcripts: ignore punctuation, capitalization and filler words. Only flag real grammar errors, wrong word choice, or clearly unnatural phrasing.
 - correction.needed is true only if the fix would genuinely improve their English. If their sentence was fine, set needed=false and leave the strings empty. If there is no learner message yet (you are opening the conversation), needed=false.
-- note_ko must be Korean, at most 2 short sentences.
+- Check EVERY sentence in the learner's message, not just the first one. If any sentence has a real error, needed is true and the correction and notes must cover all of them.
+- note_ko must be Korean, one short sentence per distinct fix (at most 4), newline-separated.
 - phrase.en: one natural, reusable expression worth learning, copied EXACTLY (same words, same order, contiguous) from your own "reply" so it can be underlined there. Use empty strings if nothing in your reply is worth saving.`;
 }
 
