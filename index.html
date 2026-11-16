@@ -56,6 +56,12 @@ input[type=range]{width:100%}
 .coach{align-self:flex-end;max-width:92%;background:var(--warnbg);color:var(--ink);border-radius:12px;padding:8px 11px;font-size:14px}
 .coach.ok{background:var(--okbg);color:var(--ok)}
 .coach summary{cursor:pointer;font-weight:600}
+.coach .qa{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.coach .qa .q{font-weight:600;margin-bottom:2px}
+.coach .ex{margin-top:6px}
+.coach .askBtn{margin-top:8px}
+.coach .askForm{margin-top:8px}
+.coach .askForm input{padding:9px 10px;font-size:14px}
 .coach b{display:block;margin-bottom:2px}
 #bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 22%);padding:12px 0 2px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 6px 18px rgba(79,70,229,.35)}
@@ -400,7 +406,10 @@ function msgHTML(m, i) {
   }
   let extra = '';
   if (m.correction) {
-    if (m.correction.needed) extra += `<div class="coach"><b>💡 더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div></div>`;
+    if (m.correction.needed) {
+      const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">🔊</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
+      extra += `<div class="coach"><b>💡 더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">❓ 질문하기</button>`}</div>`;
+    }
     else extra += `<div class="coach ok">👍 자연스러워요</div>`;
   }
   const d = m.delivery;
@@ -454,6 +463,18 @@ async function talkMic() {
     if (!tr.speech_detected) { toast('목소리가 잘 안 들렸어요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
     await talkSend(tr.transcript, { pronunciation_issues: tr.pronunciation_issues, delivery_ko: tr.delivery_ko });
   } catch (e) { toast(e.message); t.rec = null; talkSetStatus('idle'); }
+}
+async function talkAsk(i, question) {
+  const m = talk.msgs[i];
+  if (!m || !m.correction || !question.trim() || m.askBusy) return;
+  m.askBusy = true; m.askOpen = true;
+  renderTalk();
+  try {
+    const r = await api('/api/claude', { task: 'explain', original: m.content, better: m.correction.better, note_ko: m.correction.note_ko, thread: (m.qa || []).map((x) => ({ q: x.q, a: x.a })), question: question.trim() });
+    (m.qa = m.qa || []).push({ q: question.trim(), a: r.answer_ko, examples: r.examples || [] });
+  } catch (e) { toast(e.message); }
+  m.askBusy = false;
+  if (tab === 'talk' && talk.phase === 'chat') { renderTalk(); const f = document.querySelector(`.askForm[data-i="${i}"] input`); if (f) f.focus(); }
 }
 async function talkHint() {
   if (talk.status !== 'idle') return;
@@ -748,6 +769,7 @@ document.addEventListener('click', (e) => {
     case 'hint': talkHint(); break;
     case 'hintClose': talk.hints = null; renderTalk(); break;
     case 'typeToggle': talk.typing = !talk.typing; renderTalk(); if (talk.typing) setTimeout(() => { const i = $('#txt'); if (i) i.focus(); }, 30); break;
+    case 'askToggle': { const m = talk.msgs[+d.i]; if (m) { m.askOpen = true; renderTalk(); const f = document.querySelector(`.askForm[data-i="${d.i}"] input`); if (f) f.focus(); } break; }
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
     case 'toeicStart': toeicStart(d.type); break;
@@ -761,6 +783,15 @@ document.addEventListener('click', (e) => {
     case 'logout': password = ''; store.set('ec_pw', ''); showLogin(); break;
     case 'wipe': if (confirm('기록과 표현 노트를 모두 지울까요?')) { store.set('ec_history', []); store.set('ec_phrases', []); toast('지웠어요'); } break;
   }
+});
+
+document.addEventListener('submit', (e) => {
+  const f = e.target.closest && e.target.closest('.askForm');
+  if (!f) return;
+  e.preventDefault();
+  const inp = f.querySelector('.askTxt');
+  const q = inp ? inp.value : '';
+  if (q.trim()) talkAsk(+f.dataset.i, q);
 });
 
 $('#pwGo').onclick = async () => {

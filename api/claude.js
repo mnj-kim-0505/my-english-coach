@@ -353,12 +353,58 @@ ${RUBRICS[type]}`,
   };
 }
 
+const EXPLAIN_TOOL = {
+  name: 'explain',
+  description: 'Answer the learner\'s follow-up question about a correction.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      answer_ko: str('Answer in Korean, plain and concise (max ~5 sentences). Be honest; if the original was acceptable, say so. Mention nuance differences when relevant.'),
+      examples: {
+        type: 'array',
+        description: '0-2 short example sentences that illustrate the point (empty if not useful).',
+        items: { type: 'object', properties: { en: str('Example sentence in English'), ko: str('Korean meaning') }, required: ['en', 'ko'] },
+      },
+    },
+    required: ['answer_ko', 'examples'],
+  },
+};
+
+async function explain(body) {
+  const clip = (v, n) => String(v || '').slice(0, n);
+  const original = clip(body.original, 500);
+  const better = clip(body.better, 500);
+  const note = clip(body.note_ko, 500);
+  const question = clip(body.question, 500).trim();
+  if (!question || !original || !better) throw new HttpError(400, '질문을 입력해 주세요.');
+  const thread = (Array.isArray(body.thread) ? body.thread : []).slice(-6).map((t) => ({ q: clip(t && t.q, 500), a: clip(t && t.a, 1500) })).filter((t) => t.q && t.a);
+  const ctx = `Context: a Korean learner said: "${original}"\nThe coach suggested: "${better}"\nCoach's note (Korean): ${note || '(none)'}\n\nLearner's question:`;
+  const msgs = [];
+  thread.forEach((t, i) => {
+    msgs.push({ role: 'user', content: i === 0 ? `${ctx} ${t.q}` : t.q });
+    msgs.push({ role: 'assistant', content: t.a });
+  });
+  msgs.push({ role: 'user', content: thread.length ? question : `${ctx} ${question}` });
+  const out = await callClaude({
+    model: MODELS.fast(),
+    system: 'You are a friendly, honest English tutor for a Korean adult learner. Answer their follow-up question about the correction in Korean, concisely and concretely. Do not flatter. If the learner\'s original sentence was actually fine, say so. If unsure about a nuance, say how sure you are in percent.',
+    messages: msgs,
+    tool: EXPLAIN_TOOL,
+    maxTokens: 700,
+  });
+  return {
+    answer_ko: String(out.answer_ko || '').slice(0, 1500),
+    examples: Array.isArray(out.examples) ? out.examples.slice(0, 2).map((e) => ({ en: String(e.en || ''), ko: String(e.ko || '') })).filter((e) => e.en) : [],
+  };
+}
+
 /* ───────────── 라우터 ───────────── */
 
 const TASKS = {
   ping: async () => ({ ok: true }),
   conversation,
   hint,
+  explain,
   conv_review: convReview,
   toeic_generate: toeicGenerate,
   toeic_evaluate: toeicEvaluate,
