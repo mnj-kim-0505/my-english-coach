@@ -712,7 +712,9 @@ function renderToeic() {
       <div class="card"><b>${esc(s.set.title)}</b>
         <p class="sub" style="margin:6px 0 0">${cfg.items.length}문항 · ${cfg.items.map((i) => (i.prep ? `준비 ${i.prep}초/` : '') + `답변 ${i.resp}초`).join(' → ')}${cfg.reading ? ` · 자료 읽기 ${cfg.reading}초` : ''}</p>
         <p class="sub" style="margin:6px 0 0">시작하면 마이크 권한을 물어볼 수 있어요. 비프음이 울리면 말하세요.</p></div>
-      <button class="btn" data-act="toeicGo">시작</button>
+      ${s.type === 'read_aloud'
+        ? `<button class="btn" data-act="toeicGo" data-n="1">1문제만 연습 (피드백 바로 보기)</button><div style="height:8px"></div><button class="btn sec" data-act="toeicGo" data-n="2">2문제 모두 (실전)</button>`
+        : `<button class="btn" data-act="toeicGo">시작</button>`}
       <div style="height:8px"></div><button class="btn ghost" data-act="toeicHome">취소</button>`;
     return;
   }
@@ -816,8 +818,10 @@ function abortToeic() {
   TTS.cancel(); releaseMic();
   toeic.sess = null; toeic.phase = 'home';
 }
-async function toeicGo() {
-  const s = toeic.sess, cfg = s.cfg, set = s.set;
+async function toeicGo(n) {
+  const s = toeic.sess, cfg = s.cfg;
+  if (n && n < s.set.items.length) s.set = { ...s.set, items: s.set.items.slice(0, n) };
+  const set = s.set;
   unlockAudio();
   try { await getMic(); } catch (e) { toast(e.message); return; }
   toeic.phase = 'run';
@@ -974,7 +978,7 @@ document.addEventListener('click', (e) => {
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
     case 'toeicStart': toeicStart(d.type); break;
-    case 'toeicGo': toeicGo(); break;
+    case 'toeicGo': toeicGo(+d.n || 0); break;
     case 'toeicHome': toeic.phase = 'home'; toeic.sess = null; renderToeic(); break;
     case 'skip': if (toeic.sess && toeic.sess.skip) toeic.sess.skip(); break;
     case 'stopRec': if (toeic.sess && toeic.sess.stopRec) toeic.sess.stopRec(); break;
