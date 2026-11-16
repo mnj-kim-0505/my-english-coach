@@ -228,8 +228,12 @@ async function getMic() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('마이크를 쓸 수 없어요. HTTPS 주소로 접속했는지 확인해 주세요.');
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-  } catch {
-    throw new Error('마이크 권한이 필요해요. 브라우저 설정에서 허용해 주세요.');
+  } catch (e) {
+    const n = (e && e.name) || '';
+    if (n === 'NotFoundError' || n === 'OverconstrainedError') throw new Error('마이크 장치를 찾을 수 없어요. 이 컴퓨터에 마이크(이어폰 마이크 포함)가 연결돼 있는지 확인해 주세요.');
+    if (n === 'NotReadableError' || n === 'AbortError') throw new Error('마이크를 다른 프로그램이 쓰고 있거나 사용할 수 없어요. 화상회의 등을 닫고 다시 시도해 주세요.');
+    if (n === 'SecurityError') throw new Error('이 주소에서는 마이크를 쓸 수 없어요. https 주소로 접속했는지 확인해 주세요.');
+    throw new Error('마이크 권한이 막혀 있어요. 주소창 왼쪽 아이콘에서 마이크를 허용으로 바꾸고 새로고침해 주세요.');
   }
   return micStream;
 }
@@ -238,24 +242,51 @@ function releaseMic() {
   micStream = null;
 }
 
+const SILENT = 0.02; // 이 값보다 작으면 소리가 안 들어온 것으로 봐요
+function attachMeter(stream) {
+  const c = audioCtx();
+  if (!c || !c.createAnalyser || !c.createMediaStreamSource) return null;
+  try {
+    const src = c.createMediaStreamSource(stream);
+    const an = c.createAnalyser();
+    an.fftSize = 1024;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    return {
+      read() { an.getByteTimeDomainData(buf); let m = 0; for (let i = 0; i < buf.length; i++) { const v = Math.abs(buf[i] - 128) / 128; if (v > m) m = v; } return m; },
+      stop() { try { src.disconnect(); } catch {} },
+    };
+  } catch { return null; }
+}
+function levelHTML() { return '<div class="bar" style="margin:8px auto;width:70%"><i id="lvlBar" style="width:0%"></i></div><div class="sub center" id="lvlMsg" style="color:var(--bad);min-height:18px"></div>'; }
+function updateLevel(lv, peak, sec) {
+  if (lv == null) return;
+  const b = $('#lvlBar'); if (b) b.style.width = Math.min(100, lv * 160) + '%';
+  const m = $('#lvlMsg'); if (m) m.textContent = sec >= 2.5 && peak < SILENT ? '소리가 거의 안 들어와요. 마이크 연결, 음소거, 입력 장치를 확인하세요.' : '';
+}
 async function startRecorder(maxSec, onTick) {
   const stream = await getMic();
   const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
   const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
   const chunks = [];
   const t0 = Date.now();
+  const meter = attachMeter(stream);
+  let peak = meter ? 0 : null;
   let stopped = false, resolveDone;
   const done = new Promise((r) => (resolveDone = r));
   let iv = null;
   mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   mr.onstop = () => {
     clearInterval(iv);
-    resolveDone({ blob: new Blob(chunks, { type: mr.mimeType || mime || 'audio/webm' }), durationSec: (Date.now() - t0) / 1000 });
+    if (meter) meter.stop();
+    resolveDone({ blob: new Blob(chunks, { type: mr.mimeType || mime || 'audio/webm' }), durationSec: (Date.now() - t0) / 1000, peak });
   };
   const stop = () => { if (!stopped) { stopped = true; if (mr.state !== 'inactive') mr.stop(); } };
   iv = setInterval(() => {
     const s = (Date.now() - t0) / 1000;
-    if (onTick) onTick(s);
+    const lv = meter ? meter.read() : null;
+    if (lv != null && lv > peak) peak = lv;
+    if (onTick) onTick(s, lv, peak);
     if (s >= maxSec) stop();
   }, 150);
   mr.start();
@@ -403,6 +434,7 @@ function renderTalk() {
     ${t.hints ? `<div class="card"><div class="rowb"><b>이렇게 말해볼까요?</b><button class="link" data-act="hintClose">닫기</button></div>${t.hints.map((h) => `<div style="margin:8px 0"><div class="row"><b style="flex:1">${esc(h.en)}</b><button class="mini" data-act="say" data-text="${esc(h.en)}">듣기</button></div><div class="sub">${esc(h.ko)}</div></div>`).join('')}</div>` : ''}
     <div id="bar">
       <div class="status" id="status">${statusText()}</div>
+      ${t.status === 'recording' ? levelHTML() : ''}
       <div class="row" style="gap:18px">
         <button class="mini" data-act="hint" ${t.status !== 'idle' ? 'disabled' : ''}>힌트</button>
         <button class="mic ${t.status === 'recording' ? 'rec' : ''}" data-act="mic" ${t.status === 'thinking' ? 'disabled' : ''}>${t.status === 'recording' ? '완료' : t.status === 'speaking' ? '중지' : '말하기'}</button>
@@ -580,16 +612,40 @@ async function talkMic() {
   try {
     unlockAudio();
     t.hints = null;
-    t.rec = await startRecorder(75, (s) => { const el = $('#status'); if (el) el.textContent = `녹음 중 ${s.toFixed(0)}초 — 끝나면 완료를 누르세요`; });
+    t.rec = await startRecorder(75, (s, lv, peak) => { const el = $('#status'); if (el) el.textContent = `녹음 중 ${s.toFixed(0)}초 — 끝나면 완료를 누르세요`; updateLevel(lv, peak, s); });
     talkSetStatus('recording');
-    const { blob, durationSec } = await t.rec.done;
+    const { blob, durationSec, peak } = await t.rec.done;
     t.rec = null;
     if (durationSec < 0.8) { toast('너무 짧아요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
+    if (peak != null && peak < SILENT) { toast('녹음에 소리가 거의 안 잡혔어요. 마이크를 확인하고 다시 말해 주세요.'); talkSetStatus('idle'); return; }
     talkSetStatus('thinking');
     const tr = await transcribe(blob, '');
     if (!tr.speech_detected) { toast('목소리가 잘 안 들렸어요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
     await talkSend(tr.transcript, { pronunciation_issues: tr.pronunciation_issues, delivery_ko: tr.delivery_ko });
   } catch (e) { toast(e.message); t.rec = null; talkSetStatus('idle'); }
+}
+async function micTest() {
+  const out = $('#micTestOut');
+  if (!out) return;
+  out.innerHTML = '<span class="spin"></span>';
+  try {
+    const st = await getMic();
+    const label = (st.getAudioTracks && st.getAudioTracks()[0] && st.getAudioTracks()[0].label) || '(이름 없음)';
+    const m = attachMeter(st);
+    if (!m) { out.innerHTML = `<div class="sub">사용 중인 마이크: ${esc(label)}</div><div class="sub">이 브라우저에서는 소리 크기를 표시할 수 없어요.</div>`; releaseMic(); return; }
+    out.innerHTML = `<div class="sub">사용 중인 마이크: ${esc(label)}</div><div class="bar" style="margin:8px 0"><i id="mtBar" style="width:0%"></i></div><div class="sub" id="mtMsg">아무 말이나 해보세요…</div>`;
+    let peak = 0;
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      const lv = m.read();
+      if (lv > peak) peak = lv;
+      const b = $('#mtBar'); if (b) b.style.width = Math.min(100, lv * 160) + '%';
+      if (Date.now() - t0 > 8000) {
+        clearInterval(iv); m.stop(); releaseMic();
+        const msg = $('#mtMsg'); if (msg) msg.textContent = peak < SILENT ? '소리가 거의 안 잡혔어요. 마이크 연결, 음소거, 입력 장치를 확인하세요.' : '소리가 잘 들어와요.';
+      }
+    }, 100);
+  } catch (e) { out.textContent = e.message; releaseMic(); }
 }
 async function talkAsk(i, question) {
   const m = talk.msgs[i];
@@ -690,7 +746,7 @@ function renderRun() {
   let panel = '';
   if (st.stage === 'reading') panel = `<div class="sub center">자료를 읽어 두세요</div>${timerHTML('자료 읽기')}<button class="btn sec" data-act="skip">바로 시작</button>`;
   else if (st.stage === 'prep') panel = `${timerHTML('준비 시간')}<button class="btn sec" data-act="skip">바로 녹음</button>`;
-  else if (st.stage === 'rec') panel = `${timerHTML('녹음 중', true)}<button class="btn" style="background:#3a2a2a;color:#c9a5a5" data-act="stopRec">답변 끝내기</button>`;
+  else if (st.stage === 'rec') panel = `${timerHTML('녹음 중', true)}${levelHTML()}<button class="btn" style="background:#3a2a2a;color:#c9a5a5" data-act="stopRec">답변 끝내기</button>`;
   view.innerHTML = `
     <div class="rowb" style="margin-bottom:8px"><b>${cfg.label.split(' ')[0]}${st.stage === 'reading' || st.stage === 'listen' ? '' : ` · ${st.i + 1}/${set.items.length}`}</b><button class="link" data-act="abort">중단</button></div>
     <div class="card">${body}</div>${panel ? `<div class="card">${panel}</div>` : ''}`;
@@ -719,7 +775,7 @@ function countdown(s, sec) {
   });
 }
 async function recordFor(s, limit) {
-  const rec = await startRecorder(limit, (sec) => updateCd(limit - sec, limit));
+  const rec = await startRecorder(limit, (sec, lv, peak) => { updateCd(limit - sec, limit); updateLevel(lv, peak, sec); });
   s.stopRec = rec.stop;
   updateCd(limit, limit);
   const r = await rec.done;
@@ -729,6 +785,7 @@ async function recordFor(s, limit) {
 function processAnswer(s, i, rec, limit, reference) {
   return (async () => {
     try {
+      if (rec.peak != null && rec.peak < SILENT) { toast('방금 답변은 소리가 거의 안 잡혔어요. 마이크를 확인하세요.'); return { index: i, speech_detected: false, transcript: '', error: '소리가 거의 안 잡혔어요 (마이크 확인)', duration_sec: rec.durationSec, limit_sec: limit }; }
       if (rec.durationSec < 0.8) return { index: i, speech_detected: false, transcript: '', duration_sec: rec.durationSec, limit_sec: limit };
       const tr = await transcribe(rec.blob, reference);
       return { index: i, ...tr, duration_sec: rec.durationSec, limit_sec: limit };
@@ -867,6 +924,11 @@ function renderSettings() {
       <button class="btn sec" data-act="say" data-text="Hello! Let's practice speaking English together.">들어보기</button>
     </div>
     <div class="card">
+      <b>마이크 테스트</b><p class="sub" style="margin:4px 0 8px">말을 해보면 소리 크기가 움직여요. 안 움직이면 마이크 연결이나 입력 장치를 확인하세요.</p>
+      <button class="btn sec" data-act="micTest">테스트 시작 (8초)</button>
+      <div id="micTestOut" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
       <label class="tg" style="padding:0"><span><b>AI 말 자동 읽어주기</b><br><span class="sub">끄면 회화에서 소리가 나지 않아요. 필요할 때 '다시 듣기'로 들을 수 있어요. 토스 연습의 문제 음성은 계속 나와요.</span></span><input type="checkbox" id="autoRead" ${settings.autoRead !== false ? 'checked' : ''}></label>
     </div>
     <div class="card">
@@ -906,6 +968,7 @@ document.addEventListener('click', (e) => {
     case 'convOpen': talkResume(d.id, false); break;
     case 'convReview': talkResume(d.id, true); break;
     case 'convDel': if (confirm('이 대화를 지울까요?')) { store.set('ec_convs', convs().filter((c) => c.id !== d.id)); renderTalk(); } break;
+    case 'micTest': micTest(); break;
     case 'markOpen': { const pn = document.getElementById(d.id); if (pn) pn.classList.toggle('hidden'); break; }
     case 'phraseOpen': { const pn = document.getElementById('ph' + d.i); if (pn) pn.classList.toggle('hidden'); break; }
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
