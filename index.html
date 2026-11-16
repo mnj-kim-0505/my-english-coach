@@ -317,6 +317,9 @@ function addPhrases(list) {
   store.set('ec_phrases', cur.slice(0, 300));
 }
 
+const isSaved = (en) => phrases().some((x) => x.en.toLowerCase() === String(en || '').trim().toLowerCase());
+const saveBtn = (en, ko) => (isSaved(en) ? '<button class="mini" disabled>저장됨</button>' : `<button class="mini" data-act="savePhrase" data-en="${esc(en)}" data-ko="${esc(ko)}">노트에 저장</button>`);
+
 /* ───────────── 라우터 ───────────── */
 const view = $('#view');
 let tab = 'talk';
@@ -366,8 +369,8 @@ function renderTalk() {
       ${!r ? `<div class="card center"><span class="spin"></span><p class="sub">리뷰 만드는 중…</p></div>` : `
       <div class="card"><p style="margin:0">${esc(r.overall_ko)}</p></div>
       ${r.strengths_ko.length ? `<h2>잘한 점</h2><div class="card"><ul class="tight">${r.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-      ${r.mistakes.length ? `<h2>고칠 표현</h2>${r.mistakes.map((m) => `<div class="card"><div class="sub">내가 한 말</div><div>${esc(m.original)}</div><div class="sub" style="margin-top:6px">더 좋은 표현</div><div><b>${esc(m.better)}</b> <button class="mini" data-act="say" data-text="${esc(m.better)}">듣기</button></div><div class="sub" style="margin-top:4px">${esc(m.why_ko)}</div></div>`).join('')}` : ''}
-      ${r.phrases.length ? `<h2>외울 표현 <span class="sub">(기록 탭에 저장됨)</span></h2>${r.phrases.map((p) => `<div class="card rowb"><div><b>${esc(p.en)}</b><div class="sub">${esc(p.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(p.en)}">듣기</button></div>`).join('')}` : ''}
+      ${r.mistakes.length ? `<h2>고칠 표현</h2>${r.mistakes.map((m) => `<div class="card"><div class="sub">내가 한 말</div><div>${esc(m.original)}</div><div class="sub" style="margin-top:6px">더 좋은 표현</div><div><b>${esc(m.better)}</b> <button class="mini" data-act="say" data-text="${esc(m.better)}">듣기</button> ${saveBtn(m.better, '내 문장: ' + m.original)}</div><div class="sub" style="margin-top:4px">${esc(m.why_ko)}</div></div>`).join('')}` : ''}
+      ${r.phrases.length ? `<h2>외울 표현 <span class="sub">(저장 버튼을 누르면 기록 탭에 담겨요)</span></h2>${r.phrases.map((p) => `<div class="card rowb"><div><b>${esc(p.en)}</b><div class="sub">${esc(p.ko)}</div></div><div class="row"><button class="mini" data-act="say" data-text="${esc(p.en)}">듣기</button>${saveBtn(p.en, p.ko)}</div></div>`).join('')}` : ''}
       <h2>다음에 집중할 것</h2><div class="card">${esc(r.next_focus_ko)}</div>`}
       <button class="btn" data-act="talkNew">새 대화 시작</button>`;
     return;
@@ -399,13 +402,14 @@ function statusText() {
 }
 function msgHTML(m, i) {
   if (m.role === 'assistant') {
-    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>`;
+    const ph = m.phrase && m.phrase.en ? `<div class="coach" style="align-self:flex-start"><b>이 표현 어때요?</b>${esc(m.phrase.en)}<div class="sub">${esc(m.phrase.ko)}</div><div style="margin-top:6px">${saveBtn(m.phrase.en, m.phrase.ko)}</div></div>` : '';
+    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>${ph}`;
   }
   let extra = '';
   if (m.correction) {
     if (m.correction.needed) {
       const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
-      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
+      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
     }
     else extra += `<div class="coach ok">자연스러워요</div>`;
   }
@@ -431,7 +435,7 @@ async function talkTurn() {
     const lastUser = [...talk.msgs].reverse().find((m) => m.role === 'user');
     if (lastUser && talk.msgs[talk.msgs.length - 1] === lastUser) lastUser.correction = res.correction;
     talk.msgs.push({ role: 'assistant', content: res.reply });
-    if (res.phrase && res.phrase.en) addPhrases([res.phrase]);
+    talk.msgs[talk.msgs.length - 1].phrase = res.phrase && res.phrase.en ? res.phrase : null;
     talkSetStatus('speaking');
     await TTS.speak(res.reply);
   } catch (e) { toast(e.message); }
@@ -489,7 +493,6 @@ async function talkEnd() {
   talk.phase = 'review'; talk.review = null; renderTalk();
   try {
     talk.review = await api('/api/claude', { task: 'conv_review', scenario: talk.scenario, messages: talk.msgs.map((m) => ({ role: m.role, content: m.content })) });
-    addPhrases(talk.review.phrases);
     addHistory({ kind: 'talk', scenario: talk.scenario, level: talk.level, turns: userTurns });
   } catch (e) { toast(e.message); talk.phase = 'setup'; }
   if (tab === 'talk') renderTalk();
@@ -767,6 +770,7 @@ document.addEventListener('click', (e) => {
     case 'hintClose': talk.hints = null; renderTalk(); break;
     case 'typeToggle': talk.typing = !talk.typing; renderTalk(); if (talk.typing) setTimeout(() => { const i = $('#txt'); if (i) i.focus(); }, 30); break;
     case 'askToggle': { const m = talk.msgs[+d.i]; if (m) { m.askOpen = true; renderTalk(); const f = document.querySelector(`.askForm[data-i="${d.i}"] input`); if (f) f.focus(); } break; }
+    case 'savePhrase': addPhrases([{ en: d.en, ko: d.ko }]); el.textContent = '저장됨'; el.disabled = true; el.removeAttribute('data-act'); toast('노트에 저장했어요'); break;
     case 'speakMsg': TTS.speak(talk.msgs[+d.i].content); break;
     case 'say': unlockAudio(); TTS.speak(d.text); break;
     case 'toeicStart': toeicStart(d.type); break;
