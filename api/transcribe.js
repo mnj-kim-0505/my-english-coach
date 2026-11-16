@@ -12,9 +12,9 @@ Listen to the audio and return ONLY a JSON object with exactly this shape:
   "reference_diff": [ string ]
 }
 Rules:
-- transcript: the English words actually spoken, verbatim. Do NOT fix grammar, do NOT complete unfinished sentences, keep fillers (um, uh) and repeated words. No timestamps or speaker labels.
+- transcript: the words actually spoken, verbatim. If the speaker says a Korean word or phrase (usually because they cannot recall the English), write that part in Hangul wrapped in double quotes, e.g. I went to "증평" last weekend. Never translate it and never turn it into English-looking letters. Do NOT fix grammar, do NOT complete unfinished sentences, keep fillers (um, uh) and repeated words. No timestamps or speaker labels.
 - If there is no intelligible speech (silence, background noise only), set speech_detected to false and transcript to "". Never invent words.
-- pronunciation_issues: up to 6 words that were clearly mispronounced, especially problems typical of Korean speakers (r/l, f/p, v/b, th, final consonants, vowel length, word stress). issue_ko is a short Korean note: what it sounded like and the correct target. Empty array if none.
+- pronunciation_issues: ignore the Korean parts; up to 6 English words that were clearly mispronounced, especially problems typical of Korean speakers (r/l, f/p, v/b, th, final consonants, vowel length, word stress). issue_ko is a short Korean note: what it sounded like and the correct target. Empty array if none.
 - delivery_ko: 1-2 short Korean sentences about intonation, stress, pace, pauses and hesitation.`;
   if (reference) {
     p += `

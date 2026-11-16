@@ -85,6 +85,7 @@ Rules:
 - React to what the learner said, then keep the conversation moving (usually with one question).
 - The learner's messages are speech transcripts: ignore punctuation, capitalization and filler words. Only flag real grammar errors, wrong word choice, or clearly unnatural phrasing.
 - correction.needed is true only if the fix would genuinely improve their English. If their sentence was fine, set needed=false and leave the strings empty. If there is no learner message yet (you are opening the conversation), needed=false.
+- If the learner writes Korean (Hangul), especially inside double quotes, it means they could not recall the English. Understand it and react to the meaning in your reply (never ask them to repeat it in English first). Then set correction.needed to true: in correction.better replace every Korean part with the natural English expression (use standard romanization for place names), and in note_ko give the English for each Korean part, e.g. "증평" → Jeungpyeong.
 - Check EVERY sentence in the learner's message, not just the first one. If any sentence has a real error, needed is true and the correction and notes must cover all of them.
 - note_ko must be Korean, one short sentence per distinct fix (at most 4), newline-separated.
 - phrase.en: one natural, reusable expression worth learning, copied EXACTLY (same words, same order, contiguous) from your own "reply" so it can be underlined there. Use empty strings if nothing in your reply is worth saving.`;
