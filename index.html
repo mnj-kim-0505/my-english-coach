@@ -3,44 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#4f46e5">
+<meta name="theme-color" content="#121212">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>My English Coach</title>
+<title>Notes</title>
+<link rel="icon" href="data:,">
 <style>
 :root{
-  --bg:#f5f6fb;--card:#fff;--ink:#1b1d2a;--sub:#6a6f86;--line:#e5e7f0;
-  --accent:#4f46e5;--accent-ink:#fff;--soft:#eef0ff;--ok:#15803d;--okbg:#e8f6ec;
-  --warn:#b45309;--warnbg:#fff4e0;--bad:#dc2626;--badbg:#fdeaea;
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#0e1016;--card:#171a24;--ink:#eceef7;--sub:#9aa0b8;--line:#262a3a;
-    --accent:#8b93ff;--accent-ink:#0e1016;--soft:#20243d;--ok:#4ade80;--okbg:#12281b;
-    --warn:#fbbf24;--warnbg:#2c2410;--bad:#f87171;--badbg:#2e1616;}
+  color-scheme:dark;
+  --bg:#121212;--card:#1b1b1b;--ink:#b8b8b8;--sub:#767676;--line:#2a2a2a;
+  --accent:#3a3a3a;--accent-ink:#d0d0d0;--soft:#222;--ok:#8a9a8a;--okbg:#1b1f1b;
+  --warn:#a39a85;--warnbg:#201f1b;--bad:#9a6a6a;--badbg:#241c1c;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
 #app{display:flex;flex-direction:column;height:100dvh;max-width:720px;margin:0 auto}
 #view{flex:1;overflow-y:auto;padding:14px 14px 20px;-webkit-overflow-scrolling:touch}
 #tabs{display:flex;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom)}
-#tabs button{flex:1;border:0;background:none;color:var(--sub);padding:9px 0 8px;font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:1px}
-#tabs button .i{font-size:20px;line-height:1.1}
+#tabs button{flex:1;border:0;background:none;color:var(--sub);padding:11px 0;font:inherit;font-size:13px}
+
 #tabs button.on{color:var(--accent);font-weight:700}
-h1{font-size:20px;margin:4px 0 12px}
-h2{font-size:16px;margin:18px 0 8px}
-.sub{color:var(--sub);font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+h1{font-size:15px;font-weight:600;margin:4px 0 12px;color:var(--ink)}
+h2{font-size:13px;font-weight:600;margin:18px 0 8px;color:var(--sub)}
+.sub{color:var(--sub);font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
 .row{display:flex;gap:8px;align-items:center}
 .rowb{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 10px;font:inherit;text-align:left}
-.chip.on{border-color:var(--accent);background:var(--soft);font-weight:600}
+.chip.on{border-color:#555;background:#262626;color:#ddd}
 .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .seg button{flex:1;border:0;background:var(--card);color:var(--ink);padding:10px;font:inherit}
-.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
-.btn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:13px 16px;font:inherit;font-weight:700;width:100%}
-.btn.sec{background:var(--soft);color:var(--accent)}
+.seg button.on{background:#2e2e2e;color:#ddd}
+.btn{border:1px solid var(--line);background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:11px 14px;font:inherit;font-weight:500;width:100%}
+.btn.sec{background:var(--soft);color:var(--ink)}
 .btn.ghost{background:none;color:var(--sub);font-weight:500}
 .btn:disabled{opacity:.5}
 .mini{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:3px 10px;font:inherit;font-size:13px}
@@ -49,9 +46,9 @@ input[type=text],input[type=password],select{width:100%;border:1px solid var(--l
 input[type=range]{width:100%}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:8px;padding-bottom:6px}
-.bubble{max-width:86%;padding:10px 13px;border-radius:16px;position:relative;white-space:pre-wrap;word-break:break-word}
-.bubble.ai{background:var(--card);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
-.bubble.me{background:var(--accent);color:var(--accent-ink);align-self:flex-end;border-bottom-right-radius:4px}
+.bubble{max-width:86%;padding:8px 11px;border-radius:8px;position:relative;white-space:pre-wrap;word-break:break-word}
+.bubble.ai{background:var(--card);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:2px}
+.bubble.me{background:#262626;color:#c8c8c8;align-self:flex-end;border-bottom-right-radius:2px}
 .bubble .mini{margin-top:6px;display:inline-block}
 .coach{align-self:flex-end;max-width:92%;background:var(--warnbg);color:var(--ink);border-radius:12px;padding:8px 11px;font-size:14px}
 .coach.ok{background:var(--okbg);color:var(--ok)}
@@ -64,21 +61,21 @@ input[type=range]{width:100%}
 .coach .askForm input{padding:9px 10px;font-size:14px}
 .coach b{display:block;margin-bottom:2px}
 #bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 22%);padding:12px 0 2px;display:flex;flex-direction:column;gap:8px;align-items:center}
-.mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;box-shadow:0 6px 18px rgba(79,70,229,.35)}
-.mic.rec{background:var(--bad);color:#fff;animation:pulse 1.2s infinite}
+.mic{min-width:120px;height:42px;border-radius:8px;border:1px solid var(--line);background:var(--accent);color:var(--accent-ink);font:inherit;font-size:14px}
+.mic.rec{background:#3a2a2a;color:#c9a5a5}
 .mic:disabled{opacity:.5}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.5)}100%{box-shadow:0 0 0 18px rgba(220,38,38,0)}}
+
 .status{font-size:13px;color:var(--sub);min-height:20px}
 /* toeic */
 .qcard{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:13px;margin-bottom:8px;font:inherit}
 .qcard b{font-size:15px}
 .pre{white-space:pre-wrap;background:var(--soft);border-radius:12px;padding:12px;font-size:15px}
 .big{font-size:19px;line-height:1.6}
-.timer{font-size:54px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1}
+.timer{font-size:40px;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;line-height:1.1}
 .bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:10px 0}
-.bar i{display:block;height:100%;width:100%;background:var(--accent);transition:width .15s linear}
-.bar.rec i{background:var(--bad)}
-.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-weight:700;font-size:14px;background:var(--soft);color:var(--accent)}
+.bar i{display:block;height:100%;width:100%;background:#666;transition:width .15s linear}
+.bar.rec i{background:#8a5a5a}
+.badge{display:inline-block;border-radius:6px;padding:1px 8px;font-weight:500;font-size:12px;background:var(--soft);color:var(--ink)}
 .badge.hi{background:var(--okbg);color:var(--ok)}
 .badge.lo{background:var(--badbg);color:var(--bad)}
 .quote{border-left:3px solid var(--line);padding:2px 10px;color:var(--ink);margin:6px 0;white-space:pre-wrap}
@@ -87,10 +84,10 @@ ul.tight li{margin:2px 0}
 details{margin:6px 0}
 details summary{cursor:pointer;font-weight:600}
 .center{text-align:center}
-.spin{display:inline-block;width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:#777;border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90%;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#2a2a2a;color:#bbb;padding:10px 16px;border-radius:12px;font-size:14px;max-width:90%;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #toast.show{opacity:.95}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:40}
 .modal .card{width:100%;max-width:380px;margin:0}
@@ -101,16 +98,16 @@ label.tg{display:flex;justify-content:space-between;align-items:center;gap:10px;
 <div id="app">
   <main id="view"></main>
   <nav id="tabs">
-    <button data-tab="talk"><span class="i">💬</span>회화</button>
-    <button data-tab="toeic"><span class="i">🎯</span>토스</button>
-    <button data-tab="log"><span class="i">📒</span>기록</button>
-    <button data-tab="settings"><span class="i">⚙️</span>설정</button>
+    <button data-tab="talk">회화</button>
+    <button data-tab="toeic">토스</button>
+    <button data-tab="log">기록</button>
+    <button data-tab="settings">설정</button>
   </nav>
 </div>
 <div id="toast"></div>
 <div id="login" class="modal hidden">
   <div class="card">
-    <h1>My English Coach</h1>
+    <h1>Notes</h1>
     <p class="sub">설정해 둔 앱 비밀번호를 입력하세요.</p>
     <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
     <div style="height:10px"></div>
@@ -337,13 +334,13 @@ function showLogin() { $('#login').classList.remove('hidden'); setTimeout(() => 
 
 /* ═══════════════ 일상 회화 ═══════════════ */
 const SCENARIOS = [
-  { id: 'free', ico: '💬', name: '자유 대화' },
-  { id: 'smalltalk', ico: '☕', name: '스몰토크' },
-  { id: 'work', ico: '🧪', name: '업무·연구 이야기' },
-  { id: 'cafe', ico: '🍽️', name: '카페·식당' },
-  { id: 'travel', ico: '✈️', name: '여행' },
-  { id: 'service', ico: '🛎️', name: '문의·불만 처리' },
-  { id: 'interview', ico: '💼', name: '면접' },
+  { id: 'free', ico: '', name: '자유 대화' },
+  { id: 'smalltalk', ico: '', name: '스몰토크' },
+  { id: 'work', ico: '', name: '업무·연구 이야기' },
+  { id: 'cafe', ico: '', name: '카페·식당' },
+  { id: 'travel', ico: '', name: '여행' },
+  { id: 'service', ico: '', name: '문의·불만 처리' },
+  { id: 'interview', ico: '', name: '면접' },
 ];
 const LEVELS = [{ id: 'beginner', name: '초급' }, { id: 'intermediate', name: '중급' }, { id: 'advanced', name: '고급' }];
 const talk = { phase: 'setup', scenario: 'free', level: settings.level, msgs: [], status: 'idle', rec: null, hints: null, review: null };
@@ -355,7 +352,7 @@ function renderTalk() {
       <h1>일상 회화 연습</h1>
       <p class="sub">마이크 버튼으로 말하면 AI가 대답하고, 내 문장은 더 자연스럽게 고쳐줘요.</p>
       <h2>상황</h2>
-      <div class="grid">${SCENARIOS.map((s) => `<button class="chip ${t.scenario === s.id ? 'on' : ''}" data-act="scn" data-id="${s.id}">${s.ico} ${s.name}</button>`).join('')}</div>
+      <div class="grid">${SCENARIOS.map((s) => `<button class="chip ${t.scenario === s.id ? 'on' : ''}" data-act="scn" data-id="${s.id}">${s.name}</button>`).join('')}</div>
       <h2>난이도</h2>
       <div class="seg">${LEVELS.map((l) => `<button class="${t.level === l.id ? 'on' : ''}" data-act="lvl" data-id="${l.id}">${l.name}</button>`).join('')}</div>
       <div style="height:18px"></div>
@@ -368,27 +365,27 @@ function renderTalk() {
       <h1>대화 리뷰</h1>
       ${!r ? `<div class="card center"><span class="spin"></span><p class="sub">리뷰 만드는 중…</p></div>` : `
       <div class="card"><p style="margin:0">${esc(r.overall_ko)}</p></div>
-      ${r.strengths_ko.length ? `<h2>👍 잘한 점</h2><div class="card"><ul class="tight">${r.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-      ${r.mistakes.length ? `<h2>✏️ 고칠 표현</h2>${r.mistakes.map((m) => `<div class="card"><div class="sub">내가 한 말</div><div>${esc(m.original)}</div><div class="sub" style="margin-top:6px">더 좋은 표현</div><div><b>${esc(m.better)}</b> <button class="mini" data-act="say" data-text="${esc(m.better)}">🔊</button></div><div class="sub" style="margin-top:4px">${esc(m.why_ko)}</div></div>`).join('')}` : ''}
-      ${r.phrases.length ? `<h2>📌 외울 표현 <span class="sub">(기록 탭에 저장됨)</span></h2>${r.phrases.map((p) => `<div class="card rowb"><div><b>${esc(p.en)}</b><div class="sub">${esc(p.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(p.en)}">🔊</button></div>`).join('')}` : ''}
-      <h2>🎯 다음에 집중할 것</h2><div class="card">${esc(r.next_focus_ko)}</div>`}
+      ${r.strengths_ko.length ? `<h2>잘한 점</h2><div class="card"><ul class="tight">${r.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+      ${r.mistakes.length ? `<h2>고칠 표현</h2>${r.mistakes.map((m) => `<div class="card"><div class="sub">내가 한 말</div><div>${esc(m.original)}</div><div class="sub" style="margin-top:6px">더 좋은 표현</div><div><b>${esc(m.better)}</b> <button class="mini" data-act="say" data-text="${esc(m.better)}">듣기</button></div><div class="sub" style="margin-top:4px">${esc(m.why_ko)}</div></div>`).join('')}` : ''}
+      ${r.phrases.length ? `<h2>외울 표현 <span class="sub">(기록 탭에 저장됨)</span></h2>${r.phrases.map((p) => `<div class="card rowb"><div><b>${esc(p.en)}</b><div class="sub">${esc(p.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(p.en)}">듣기</button></div>`).join('')}` : ''}
+      <h2>다음에 집중할 것</h2><div class="card">${esc(r.next_focus_ko)}</div>`}
       <button class="btn" data-act="talkNew">새 대화 시작</button>`;
     return;
   }
   const sc = SCENARIOS.find((s) => s.id === t.scenario);
   view.innerHTML = `
     <div class="rowb" style="margin-bottom:8px">
-      <div><b>${sc.ico} ${sc.name}</b> <span class="sub">· ${LEVELS.find((l) => l.id === t.level).name}</span></div>
+      <div><b>${sc.name}</b> <span class="sub">· ${LEVELS.find((l) => l.id === t.level).name}</span></div>
       <button class="mini" data-act="talkEnd">종료·리뷰</button>
     </div>
     <div class="chat" id="chat">${t.msgs.map(msgHTML).join('')}${t.status === 'thinking' ? '<div class="bubble ai"><span class="spin"></span></div>' : ''}</div>
-    ${t.hints ? `<div class="card"><div class="rowb"><b>💡 이렇게 말해볼까요?</b><button class="link" data-act="hintClose">닫기</button></div>${t.hints.map((h) => `<div style="margin:8px 0"><div class="row"><b style="flex:1">${esc(h.en)}</b><button class="mini" data-act="say" data-text="${esc(h.en)}">🔊</button></div><div class="sub">${esc(h.ko)}</div></div>`).join('')}</div>` : ''}
+    ${t.hints ? `<div class="card"><div class="rowb"><b>이렇게 말해볼까요?</b><button class="link" data-act="hintClose">닫기</button></div>${t.hints.map((h) => `<div style="margin:8px 0"><div class="row"><b style="flex:1">${esc(h.en)}</b><button class="mini" data-act="say" data-text="${esc(h.en)}">듣기</button></div><div class="sub">${esc(h.ko)}</div></div>`).join('')}</div>` : ''}
     <div id="bar">
       <div class="status" id="status">${statusText()}</div>
       <div class="row" style="gap:18px">
-        <button class="mini" data-act="hint" ${t.status !== 'idle' ? 'disabled' : ''}>💡 힌트</button>
-        <button class="mic ${t.status === 'recording' ? 'rec' : ''}" data-act="mic" ${t.status === 'thinking' ? 'disabled' : ''}>${t.status === 'recording' ? '■' : t.status === 'speaking' ? '🔇' : '🎤'}</button>
-        <button class="mini" data-act="typeToggle">⌨️ 입력</button>
+        <button class="mini" data-act="hint" ${t.status !== 'idle' ? 'disabled' : ''}>힌트</button>
+        <button class="mic ${t.status === 'recording' ? 'rec' : ''}" data-act="mic" ${t.status === 'thinking' ? 'disabled' : ''}>${t.status === 'recording' ? '완료' : t.status === 'speaking' ? '중지' : '말하기'}</button>
+        <button class="mini" data-act="typeToggle">입력</button>
       </div>
       <form id="txtForm" class="row ${t.typing ? '' : 'hidden'}" style="width:100%"><input type="text" id="txt" placeholder="영어로 입력…" autocomplete="off"><button class="mini" style="padding:10px 14px">보내기</button></form>
     </div>`;
@@ -398,23 +395,23 @@ function renderTalk() {
   if (f) f.onsubmit = (e) => { e.preventDefault(); const v = $('#txt').value.trim(); if (v) { $('#txt').value = ''; talkSend(v, null); } };
 }
 function statusText() {
-  return { idle: '마이크를 눌러 말해보세요', recording: '듣고 있어요… 다 말하면 ■ 를 누르세요', thinking: '처리 중…', speaking: 'AI가 말하는 중 (🔇로 중지)' }[talk.status] || '';
+  return { idle: '말하기 버튼을 누르세요', recording: '듣고 있어요… 끝나면 완료를 누르세요', thinking: '처리 중…', speaking: '재생 중 (중지 버튼으로 끄기)' }[talk.status] || '';
 }
 function msgHTML(m, i) {
   if (m.role === 'assistant') {
-    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">🔊 다시 듣기</button></div>`;
+    return `<div class="bubble ai">${esc(m.content)}<br><button class="mini" data-act="speakMsg" data-i="${i}">다시 듣기</button></div>`;
   }
   let extra = '';
   if (m.correction) {
     if (m.correction.needed) {
-      const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">🔊</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
-      extra += `<div class="coach"><b>💡 더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">❓ 질문하기</button>`}</div>`;
+      const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
+      extra += `<div class="coach"><b>더 자연스럽게</b>${esc(m.correction.better)}<div class="sub">${esc(m.correction.note_ko)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
     }
-    else extra += `<div class="coach ok">👍 자연스러워요</div>`;
+    else extra += `<div class="coach ok">자연스러워요</div>`;
   }
   const d = m.delivery;
   if (d && ((d.pronunciation_issues && d.pronunciation_issues.length) || d.delivery_ko)) {
-    extra += `<details class="coach"><summary>🎙 발음·전달 메모</summary>${d.delivery_ko ? `<div>${esc(d.delivery_ko)}</div>` : ''}${(d.pronunciation_issues || []).map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}</details>`;
+    extra += `<details class="coach"><summary>발음·전달 메모</summary>${d.delivery_ko ? `<div>${esc(d.delivery_ko)}</div>` : ''}${(d.pronunciation_issues || []).map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}</details>`;
   }
   return `<div class="bubble me">${esc(m.content)}</div>${extra}`;
 }
@@ -453,7 +450,7 @@ async function talkMic() {
   try {
     unlockAudio();
     t.hints = null;
-    t.rec = await startRecorder(75, (s) => { const el = $('#status'); if (el) el.textContent = `● 녹음 중 ${s.toFixed(0)}초 — 다 말하면 ■ 를 누르세요`; });
+    t.rec = await startRecorder(75, (s) => { const el = $('#status'); if (el) el.textContent = `녹음 중 ${s.toFixed(0)}초 — 끝나면 완료를 누르세요`; });
     talkSetStatus('recording');
     const { blob, durationSec } = await t.rec.done;
     t.rec = null;
@@ -548,7 +545,7 @@ function renderRun() {
   if (set.material && s.type === 'info') body += `<div class="pre" style="margin:8px 0">${esc(set.material)}</div>`;
   if (s.type === 'solution') {
     if (set.context) body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
-    if (st.stage === 'listen') body += `<div class="card center">🔊 메시지를 들려주는 중…</div>`;
+    if (st.stage === 'listen') body += `<div class="card center">메시지 재생 중…</div>`;
     if (!hide && st.stage !== 'listen') body += `<details><summary>메시지 스크립트 보기</summary><div class="pre">${esc(set.material)}</div></details>`;
     if (!hide && st.stage === 'listen') body += `<div class="pre">${esc(set.material)}</div>`;
   }
@@ -556,13 +553,13 @@ function renderRun() {
     if (s.type === 'respond' && st.i === 0 && set.context) body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
     if (s.type === 'info' && st.i === 0 && set.context && st.stage !== 'reading') body += `<div class="sub" style="margin-bottom:6px">${esc(set.context)}</div>`;
     const showText = s.type === 'read_aloud' || s.type === 'solution' || !hide;
-    body += `<div class="pre big">${showText ? esc(item.text) : '🎧 질문은 음성으로만 나와요'}</div>`;
-    if (st.stage === 'q' && cfg.speakPrompt) body += `<p class="center sub">🔊 질문을 읽어주는 중…</p>`;
+    body += `<div class="pre big">${showText ? esc(item.text) : '질문은 음성으로만 나와요'}</div>`;
+    if (st.stage === 'q' && cfg.speakPrompt) body += `<p class="center sub">질문 재생 중…</p>`;
   }
   let panel = '';
   if (st.stage === 'reading') panel = `<div class="sub center">자료를 읽어 두세요</div>${timerHTML('자료 읽기')}<button class="btn sec" data-act="skip">바로 시작</button>`;
   else if (st.stage === 'prep') panel = `${timerHTML('준비 시간')}<button class="btn sec" data-act="skip">바로 녹음</button>`;
-  else if (st.stage === 'rec') panel = `${timerHTML('● 녹음 중', true)}<button class="btn" style="background:var(--bad);color:#fff" data-act="stopRec">답변 끝내기</button>`;
+  else if (st.stage === 'rec') panel = `${timerHTML('녹음 중', true)}<button class="btn" style="background:#3a2a2a;color:#c9a5a5" data-act="stopRec">답변 끝내기</button>`;
   view.innerHTML = `
     <div class="rowb" style="margin-bottom:8px"><b>${cfg.label.split(' ')[0]}${st.stage === 'reading' || st.stage === 'listen' ? '' : ` · ${st.i + 1}/${set.items.length}`}</b><button class="link" data-act="abort">중단</button></div>
     <div class="card">${body}</div>${panel ? `<div class="card">${panel}</div>` : ''}`;
@@ -686,7 +683,7 @@ function renderResult() {
       <p style="margin:8px 0 0">${esc(res.overall_ko)}</p>
       <p class="sub" style="margin:8px 0 0">※ 녹음이 아닌 인식된 텍스트와 AI의 발음 메모를 바탕으로 한 예상 점수예요. 실제 ETS 채점과는 차이가 있을 수 있어요.</p>
     </div>
-    ${res.priorities_ko.length ? `<h2>🎯 우선 개선 포인트</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
+    ${res.priorities_ko.length ? `<h2>우선 개선 포인트</h2><div class="card"><ol class="tight">${res.priorities_ko.map((p) => `<li>${esc(p)}</li>`).join('')}</ol></div>` : ''}
     ${res.items.map((it, i) => resultItem(it, answers[i] || {}, set.items[i], i)).join('')}
     <button class="btn" data-act="toeicHome">다시 연습하기</button>`;
   view.scrollTop = 0;
@@ -702,12 +699,12 @@ function resultItem(it, a, q, i) {
     <div class="sub" style="margin-top:6px">${esc(q.text).slice(0, 140)}${q.text.length > 140 ? '…' : ''}</div>
     <div class="sub" style="margin-top:8px">AI가 들은 내 답변</div>
     <div class="quote">${a.transcript ? esc(a.transcript) : '(인식된 음성이 없어요' + (a.error ? ': ' + esc(a.error) : '') + ')'}</div>
-    <div class="sub">⏱ ${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
-    ${it.strengths_ko.length ? `<div style="margin-top:8px"><b>👍 좋은 점</b><ul class="tight">${it.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    ${it.fixes_ko.length ? `<div><b>✏️ 고칠 점</b><ul class="tight">${it.fixes_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
-    ${it.pronunciation_ko || d.length || a.delivery_ko ? `<details><summary>🎙 발음·전달</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}${d.map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}${(a.reference_diff || []).length ? `<div class="sub" style="margin-top:4px">원문과 다른 부분: ${a.reference_diff.map(esc).join(', ')}</div>` : ''}</details>` : ''}
-    ${it.improved_answer ? `<details><summary>내 답변 다듬기</summary><div class="pre">${esc(it.improved_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.improved_answer)}">🔊 듣기</button></details>` : ''}
-    ${it.model_answer ? `<details><summary>모범 답안</summary><div class="pre">${esc(it.model_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.model_answer)}">🔊 듣기</button></details>` : ''}
+    <div class="sub">${Math.round(a.duration_sec || 0)}초 / ${a.limit_sec}초${wpm ? ` · 약 ${wpm} wpm` : ''}</div>
+    ${it.strengths_ko.length ? `<div style="margin-top:8px"><b>좋은 점</b><ul class="tight">${it.strengths_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    ${it.fixes_ko.length ? `<div><b>고칠 점</b><ul class="tight">${it.fixes_ko.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+    ${it.pronunciation_ko || d.length || a.delivery_ko ? `<details><summary>발음·전달</summary>${it.pronunciation_ko ? `<p style="margin:4px 0">${esc(it.pronunciation_ko)}</p>` : ''}${a.delivery_ko ? `<p class="sub" style="margin:4px 0">${esc(a.delivery_ko)}</p>` : ''}${d.map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)}</div>`).join('')}${(a.reference_diff || []).length ? `<div class="sub" style="margin-top:4px">원문과 다른 부분: ${a.reference_diff.map(esc).join(', ')}</div>` : ''}</details>` : ''}
+    ${it.improved_answer ? `<details><summary>내 답변 다듬기</summary><div class="pre">${esc(it.improved_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.improved_answer)}">듣기</button></details>` : ''}
+    ${it.model_answer ? `<details><summary>모범 답안</summary><div class="pre">${esc(it.model_answer)}</div><button class="mini" data-act="say" data-text="${esc(it.model_answer)}">듣기</button></details>` : ''}
   </div>`;
 }
 
@@ -718,9 +715,9 @@ function renderLog() {
   view.innerHTML = `
     <h1>기록</h1>
     <h2>연습 기록</h2>
-    ${h.length ? h.slice(0, 40).map((e) => `<div class="card rowb" style="padding:10px 14px"><div><b>${e.kind === 'toeic' ? '🎯 ' + esc(e.label) : '💬 ' + esc((SCENARIOS.find((s) => s.id === e.scenario) || {}).name || '회화')}</b><div class="sub">${fmt(e.date)}${e.kind === 'talk' ? ` · ${e.turns}턴` : ''}</div></div>${e.kind === 'toeic' ? `<span class="badge ${e.sum / e.max >= 0.8 ? 'hi' : e.sum / e.max <= 0.4 ? 'lo' : ''}">${e.sum}/${e.max}</span>` : ''}</div>`).join('') : '<p class="sub">아직 기록이 없어요.</p>'}
+    ${h.length ? h.slice(0, 40).map((e) => `<div class="card rowb" style="padding:10px 14px"><div><b>${e.kind === 'toeic' ? esc(e.label) : esc((SCENARIOS.find((s) => s.id === e.scenario) || {}).name || '회화')}</b><div class="sub">${fmt(e.date)}${e.kind === 'talk' ? ` · ${e.turns}턴` : ''}</div></div>${e.kind === 'toeic' ? `<span class="badge ${e.sum / e.max >= 0.8 ? 'hi' : e.sum / e.max <= 0.4 ? 'lo' : ''}">${e.sum}/${e.max}</span>` : ''}</div>`).join('') : '<p class="sub">아직 기록이 없어요.</p>'}
     <h2>표현 노트 <span class="sub">(${p.length})</span></h2>
-    ${p.length ? p.slice(0, 80).map((x, i) => `<div class="card rowb" style="padding:10px 14px"><div style="flex:1"><b>${esc(x.en)}</b><div class="sub">${esc(x.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(x.en)}">🔊</button><button class="mini" data-act="delPhrase" data-i="${i}">✕</button></div>`).join('') : '<p class="sub">대화하면서 나온 유용한 표현이 여기에 쌓여요.</p>'}`;
+    ${p.length ? p.slice(0, 80).map((x, i) => `<div class="card rowb" style="padding:10px 14px"><div style="flex:1"><b>${esc(x.en)}</b><div class="sub">${esc(x.ko)}</div></div><button class="mini" data-act="say" data-text="${esc(x.en)}">듣기</button><button class="mini" data-act="delPhrase" data-i="${i}">삭제</button></div>`).join('') : '<p class="sub">대화하면서 나온 유용한 표현이 여기에 쌓여요.</p>'}`;
 }
 
 /* ═══════════════ 설정 ═══════════════ */
@@ -736,7 +733,7 @@ function renderSettings() {
       <div class="rowb"><span>속도</span><span class="sub" id="rateVal">${settings.rate.toFixed(2)}x</span></div>
       <input type="range" id="rate" min="0.6" max="1.2" step="0.05" value="${settings.rate}">
       <div style="height:8px"></div>
-      <button class="btn sec" data-act="say" data-text="Hello! Let's practice speaking English together.">🔊 들어보기</button>
+      <button class="btn sec" data-act="say" data-text="Hello! Let's practice speaking English together.">들어보기</button>
     </div>
     <div class="card">
       <b>기본 난이도 (회화)</b><div style="height:8px"></div>
