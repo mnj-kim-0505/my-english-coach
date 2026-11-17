@@ -125,6 +125,12 @@ async function conversation(body) {
   if (out && out.correction && Array.isArray(out.correction.marks) && lastText) {
     out.correction.marks = out.correction.marks.filter((m) => m && m.text && lastText.includes(String(m.text).toLowerCase()));
   }
+  if (out && out.correction && out.correction.needed && lastText) {
+    const nz = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+    if (!(out.correction.marks || []).length && nz(out.correction.better) === nz(lastText)) {
+      out.correction.needed = false; out.correction.better = ''; out.correction.better_ko = ''; out.correction.note_ko = '';
+    }
+  }
   return out;
 }
 

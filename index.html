@@ -567,11 +567,13 @@ function msgHTML(m, i) {
   const mk = markedHTML(m, i);
   let extra = '';
   if (m.correction) {
-    if (m.correction.needed) {
+    const nz = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+    const same = nz(m.correction.better) === nz(m.content) && !(m.correction.marks || []).length;
+    if (m.correction.needed && !same) {
       const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
       extra += `<div class="coach"><b>더 자연스럽게</b>${mk.better}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}<div class="row" style="margin-top:8px;flex-wrap:wrap">${m.askOpen ? '' : `<button class="mini" data-act="askToggle" data-i="${i}">질문하기</button>`}<button class="mini" data-act="rsOpen" data-i="${i}">다시 말해보기</button></div>${m.askOpen ? `<form class="askForm row" style="margin-top:8px" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : ''}${rsHTML(m, i)}</div>`;
     }
-    else extra += `<div class="coach ok">자연스러워요</div>`;
+    else extra += `<div class="coach ok">훌륭해요. 고칠 곳이 없어요</div>`;
   }
   const d = m.delivery;
   if (d && ((d.pronunciation_issues && d.pronunciation_issues.length) || d.delivery_ko)) {
