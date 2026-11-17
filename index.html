@@ -715,7 +715,9 @@ function rsHTML(m, i) {
       <button class="mini" data-act="rsMic" data-i="${i}" ${r.busy || (!recording && talk.status !== 'idle') ? 'disabled' : ''}>${recording ? '완료' : res ? '다시 말해보기' : '말하기'}</button>
       ${!r.peek && !res ? `<button class="mini" data-act="rsPeek" data-i="${i}">정답 보기</button>` : ''}
       <button class="mini" data-act="rsClose" data-i="${i}">닫기</button>
-    </div></div>`;
+    </div>
+    <form class="rsForm row" style="margin-top:8px" data-i="${i}"><input type="text" class="rsTxt" placeholder="말하기 어려우면 영어로 입력" autocomplete="off" style="flex:1"><button class="mini" style="padding:8px 12px" ${r.busy || recording ? 'disabled' : ''}>확인</button></form>
+  </div>`;
 }
 async function rsOpen(i) {
   const m = talk.msgs[i];
@@ -1251,6 +1253,13 @@ document.addEventListener('selectionchange', () => {
   }, 200);
 });
 document.addEventListener('submit', (e) => {
+  const rf = e.target.closest && e.target.closest('.rsForm');
+  if (rf) {
+    e.preventDefault();
+    const m = talk.msgs[+rf.dataset.i], v = (rf.querySelector('.rsTxt').value || '').trim();
+    if (m && m.correction && v) { m.rs.result = compareSpeech(m.correction.better, v); persistTalk(); renderTalk(); }
+    return;
+  }
   const nf = e.target.closest && e.target.closest('.noteForm');
   if (nf) {
     e.preventDefault();
