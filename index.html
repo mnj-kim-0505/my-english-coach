@@ -678,39 +678,32 @@ async function micTest() {
     }, 100);
   } catch (e) { out.textContent = e.message; releaseMic(); }
 }
-function compareSpeech(target, said) {
-  const norm = (w) => w.toLowerCase().replace(/[^a-z0-9']/g, '');
-  const T = String(target).split(/\s+/).map(norm).filter(Boolean);
-  const toks = String(said).split(/\s+/).filter(Boolean);
-  const S = toks.map(norm);
-  const n = T.length, m = S.length;
-  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let a = n - 1; a >= 0; a--) for (let b = m - 1; b >= 0; b--) dp[a][b] = S[b] && T[a] === S[b] ? dp[a + 1][b + 1] + 1 : Math.max(dp[a + 1][b], dp[a][b + 1]);
-  const hitT = new Set(), hitS = new Set();
-  let a = 0, b = 0;
-  while (a < n && b < m) {
-    if (S[b] && T[a] === S[b]) { hitT.add(a); hitS.add(b); a++; b++; }
-    else if (dp[a + 1][b] >= dp[a][b + 1]) a++;
-    else b++;
-  }
-  return {
-    pct: n ? Math.round((hitT.size / n) * 100) : 0,
-    missing: T.filter((_, i) => !hitT.has(i)),
-    saidHTML: toks.map((tk, i) => (S[i] && !hitS.has(i) ? `<span class="mk mk-g fx">${esc(tk)}</span>` : esc(tk))).join(' '),
-  };
+async function rsEvaluate(m, text, spoken, pron) {
+  const r = await api('/api/claude', { task: 'resay_check', ko: m.correction.better_ko || '', reference: m.correction.better, attempt: text, spoken });
+  m.rs.result = { said: text, spoken, check: r, pron: pron || null };
+}
+function rsResultHTML(res) {
+  const c = res.check;
+  const src = c.marks.map((x) => ({ word: x.text, type: x.type === 'expression' ? 'stress' : 'sound' }));
+  const say = (t) => `<button class="mini" data-act="say" data-text="${esc(t)}">듣기</button>`;
+  const issues = res.pron && res.pron.issues && res.pron.issues.length ? res.pron.issues : [];
+  return `<div class="sub">${res.spoken ? '내가 말한 것' : '내가 입력한 것'}</div><div class="quote">${speechMarked(res.said, src)}</div>
+    <div style="margin:4px 0"><b>${c.correct ? '문법·표현 문제 없어요' : '고칠 부분이 있어요'}</b>${c.meaning_ok ? '' : `<div class="sub">뜻이 조금 달라요: ${esc(c.meaning_note_ko)}</div>`}</div>
+    ${c.correct ? '' : `<div class="coach" style="margin-top:6px"><b>더 자연스럽게</b>${esc(c.better)} ${say(c.better)}<div class="sub">${esc(c.note_ko)}</div></div>`}
+    ${c.marks.length ? `<ul class="tight">${c.marks.map((x) => `<li><span class="mk ${x.type === 'expression' ? 'mk-e' : 'mk-g'} fx">${esc(x.text)}</span> → <b>${esc(x.fix)}</b> – ${esc(x.why_ko)}</li>`).join('')}</ul>` : ''}
+    ${issues.length || (res.pron && res.pron.delivery) ? `<details class="coach"><summary>발음·전달 메모</summary>${res.pron.delivery ? `<div>${esc(res.pron.delivery)}</div>` : ''}${issues.map((p) => `<div class="sub"><b>${esc(p.word)}</b> – ${esc(p.issue_ko)} ${say(p.word)}</div>`).join('')}</details>` : ''}`;
 }
 function rsHTML(m, i) {
   const r = m.rs;
   if (!r || !r.open) return '';
   const c = m.correction, res = r.result;
   const recording = r.rec && talk.status === 'recording';
-  const verdict = res ? (res.pct >= 90 ? '거의 같아요' : res.pct >= 60 ? '비슷해요. 몇 부분이 달라요' : '많이 달라요. 정답을 보고 다시 해보세요') : '';
   return `<div class="qa" style="margin-top:8px">
     <div class="sub">한국어 뜻 – 영어로 다시 말해보세요</div>
     <div style="margin:2px 0 8px"><b>${c.better_ko ? esc(c.better_ko) : '<span class="spin"></span>'}</b></div>
     ${r.busy ? '<div><span class="spin"></span></div>' : ''}
-    ${res ? `<div class="sub">내가 말한 것 · 일치 ${res.pct}% (${verdict})</div><div class="quote">${res.saidHTML}</div>${res.missing.length ? `<div class="sub">빠지거나 달랐던 단어: ${res.missing.map((w) => `<span class="mk mk-e fx">${esc(w)}</span>`).join(' ')}</div>` : ''}` : ''}
-    ${r.peek || res ? `<div class="sub" style="margin-top:8px">정답</div><div><b>${esc(c.better)}</b> <button class="mini" data-act="say" data-text="${esc(c.better)}">듣기</button></div>` : ''}
+    ${res ? rsResultHTML(res) : ''}
+    ${r.peek || res ? `<div class="sub" style="margin-top:8px">${res ? '이렇게도 말할 수 있어요' : '정답'}</div><div><b>${esc(c.better)}</b> <button class="mini" data-act="say" data-text="${esc(c.better)}">듣기</button></div>` : ''}
     <div class="row" style="margin-top:8px;flex-wrap:wrap">
       <button class="mini" data-act="rsMic" data-i="${i}" ${r.busy || (!recording && talk.status !== 'idle') ? 'disabled' : ''}>${recording ? '완료' : res ? '다시 말해보기' : '말하기'}</button>
       ${!r.peek && !res ? `<button class="mini" data-act="rsPeek" data-i="${i}">정답 보기</button>` : ''}
@@ -755,7 +748,7 @@ async function rsMic(i) {
     talkSetStatus('thinking');
     const tr = await transcribe(blob, '');
     if (!tr.speech_detected) { toast('목소리가 잘 안 들렸어요. 다시 말해 주세요.'); m.rs.busy = false; talkSetStatus('idle'); return; }
-    m.rs.result = compareSpeech(m.correction.better, tr.transcript);
+    await rsEvaluate(m, tr.transcript, true, { issues: tr.pronunciation_issues, delivery: tr.delivery_ko });
     m.rs.busy = false;
   } catch (e) { toast(e.message); t.rec = null; m.rs.rec = false; m.rs.busy = false; }
   persistTalk();
@@ -1257,7 +1250,10 @@ document.addEventListener('submit', (e) => {
   if (rf) {
     e.preventDefault();
     const m = talk.msgs[+rf.dataset.i], v = (rf.querySelector('.rsTxt').value || '').trim();
-    if (m && m.correction && v) { m.rs.result = compareSpeech(m.correction.better, v); persistTalk(); renderTalk(); }
+    if (m && m.correction && v && !m.rs.busy) {
+      m.rs.busy = true; m.rs.result = null; renderTalk();
+      rsEvaluate(m, v, false, null).catch((err) => toast(err.message)).finally(() => { m.rs.busy = false; persistTalk(); renderTalk(); });
+    }
     return;
   }
   const nf = e.target.closest && e.target.closest('.noteForm');
