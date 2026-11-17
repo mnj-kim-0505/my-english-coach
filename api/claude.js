@@ -95,6 +95,7 @@ function convSystem(scenario, level) {
 Scenario: ${SCENARIOS[scenario]}
 Learner level: ${LEVELS[level]}
 Rules:
+- CORRECTION SCOPE: correction (better, better_ko, note_ko, marks) is ONLY about the learner's LATEST message, the last user message in the conversation. Earlier learner messages were already corrected: never repeat, include or re-correct any sentence from them, even if they still contain errors.
 - Stay in the scenario and play your role naturally. Do not mention being an AI unless asked.
 - "reply" is 1-3 short sentences of plain text (no emojis, markdown or lists), written to be read aloud.
 - React to what the learner said, then keep the conversation moving (usually with one question).
@@ -111,13 +112,20 @@ async function conversation(body) {
   const scenario = SCENARIOS[body.scenario] ? body.scenario : 'free';
   const level = LEVELS[body.level] ? body.level : 'intermediate';
   const messages = normalizeForClaude(cleanMessages(body.messages));
-  return callClaude({
+  const out = await callClaude({
     model: MODELS.fast(),
     system: convSystem(scenario, level),
     messages,
     tool: CONV_TOOL,
     maxTokens: 1050,
   });
+  // 마지막 학습자 메시지에 없는 표시는 이전 발화에 대한 것이므로 제거
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const lastText = lastUser ? (typeof lastUser.content === 'string' ? lastUser.content : JSON.stringify(lastUser.content)).toLowerCase() : '';
+  if (out && out.correction && Array.isArray(out.correction.marks) && lastText) {
+    out.correction.marks = out.correction.marks.filter((m) => m && m.text && lastText.includes(String(m.text).toLowerCase()));
+  }
+  return out;
 }
 
 const HINT_TOOL = {
