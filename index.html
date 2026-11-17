@@ -569,7 +569,7 @@ function msgHTML(m, i) {
   if (m.correction) {
     if (m.correction.needed) {
       const qa = (m.qa || []).map((x) => `<div class="qa"><div class="q">Q. ${esc(x.q)}</div><div>${esc(x.a)}</div>${(x.examples || []).map((e) => `<div class="ex"><b>${esc(e.en)}</b> <button class="mini" data-act="say" data-text="${esc(e.en)}">듣기</button><div class="sub">${esc(e.ko)}</div></div>`).join('')}</div>`).join('');
-      extra += `<div class="coach"><b>더 자연스럽게</b>${mk.better}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}${m.askOpen ? `<form class="askForm row" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : `<button class="mini askBtn" data-act="askToggle" data-i="${i}">질문하기</button>`}</div>`;
+      extra += `<div class="coach"><b>더 자연스럽게</b>${mk.better}<div class="sub">${esc(m.correction.note_ko)}</div><div style="margin-top:6px">${saveBtn(m.correction.better, '내 문장: ' + m.content)}</div>${qa}${m.askBusy ? '<div class="qa"><span class="spin"></span></div>' : ''}<div class="row" style="margin-top:8px;flex-wrap:wrap">${m.askOpen ? '' : `<button class="mini" data-act="askToggle" data-i="${i}">질문하기</button>`}<button class="mini" data-act="rsOpen" data-i="${i}">다시 말해보기</button></div>${m.askOpen ? `<form class="askForm row" style="margin-top:8px" data-i="${i}"><input type="text" class="askTxt" placeholder="궁금한 점을 물어보세요 (한글 OK)" autocomplete="off"><button class="mini" style="padding:8px 12px" ${m.askBusy ? 'disabled' : ''}>질문</button></form>` : ''}${rsHTML(m, i)}</div>`;
     }
     else extra += `<div class="coach ok">자연스러워요</div>`;
   }
@@ -677,6 +677,87 @@ async function micTest() {
       }
     }, 100);
   } catch (e) { out.textContent = e.message; releaseMic(); }
+}
+function compareSpeech(target, said) {
+  const norm = (w) => w.toLowerCase().replace(/[^a-z0-9']/g, '');
+  const T = String(target).split(/\s+/).map(norm).filter(Boolean);
+  const toks = String(said).split(/\s+/).filter(Boolean);
+  const S = toks.map(norm);
+  const n = T.length, m = S.length;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let a = n - 1; a >= 0; a--) for (let b = m - 1; b >= 0; b--) dp[a][b] = S[b] && T[a] === S[b] ? dp[a + 1][b + 1] + 1 : Math.max(dp[a + 1][b], dp[a][b + 1]);
+  const hitT = new Set(), hitS = new Set();
+  let a = 0, b = 0;
+  while (a < n && b < m) {
+    if (S[b] && T[a] === S[b]) { hitT.add(a); hitS.add(b); a++; b++; }
+    else if (dp[a + 1][b] >= dp[a][b + 1]) a++;
+    else b++;
+  }
+  return {
+    pct: n ? Math.round((hitT.size / n) * 100) : 0,
+    missing: T.filter((_, i) => !hitT.has(i)),
+    saidHTML: toks.map((tk, i) => (S[i] && !hitS.has(i) ? `<span class="mk mk-g fx">${esc(tk)}</span>` : esc(tk))).join(' '),
+  };
+}
+function rsHTML(m, i) {
+  const r = m.rs;
+  if (!r || !r.open) return '';
+  const c = m.correction, res = r.result;
+  const recording = r.rec && talk.status === 'recording';
+  const verdict = res ? (res.pct >= 90 ? '거의 같아요' : res.pct >= 60 ? '비슷해요. 몇 부분이 달라요' : '많이 달라요. 정답을 보고 다시 해보세요') : '';
+  return `<div class="qa" style="margin-top:8px">
+    <div class="sub">한국어 뜻 – 영어로 다시 말해보세요</div>
+    <div style="margin:2px 0 8px"><b>${c.better_ko ? esc(c.better_ko) : '<span class="spin"></span>'}</b></div>
+    ${r.busy ? '<div><span class="spin"></span></div>' : ''}
+    ${res ? `<div class="sub">내가 말한 것 · 일치 ${res.pct}% (${verdict})</div><div class="quote">${res.saidHTML}</div>${res.missing.length ? `<div class="sub">빠지거나 달랐던 단어: ${res.missing.map((w) => `<span class="mk mk-e fx">${esc(w)}</span>`).join(' ')}</div>` : ''}` : ''}
+    ${r.peek || res ? `<div class="sub" style="margin-top:8px">정답</div><div><b>${esc(c.better)}</b> <button class="mini" data-act="say" data-text="${esc(c.better)}">듣기</button></div>` : ''}
+    <div class="row" style="margin-top:8px;flex-wrap:wrap">
+      <button class="mini" data-act="rsMic" data-i="${i}" ${r.busy || (!recording && talk.status !== 'idle') ? 'disabled' : ''}>${recording ? '완료' : res ? '다시 말해보기' : '말하기'}</button>
+      ${!r.peek && !res ? `<button class="mini" data-act="rsPeek" data-i="${i}">정답 보기</button>` : ''}
+      <button class="mini" data-act="rsClose" data-i="${i}">닫기</button>
+    </div></div>`;
+}
+async function rsOpen(i) {
+  const m = talk.msgs[i];
+  if (!m || !m.correction) return;
+  m.rs = m.rs || {};
+  m.rs.open = true; m.rs.result = null; m.rs.peek = false;
+  renderTalk();
+  if (!m.correction.better_ko) {
+    try {
+      const r = await api('/api/claude', { task: 'translate_ko', text: m.correction.better });
+      m.correction.better_ko = r.ko;
+      persistTalk();
+    } catch (e) { toast(e.message); m.rs.open = false; }
+    if (tab === 'talk' && talk.phase === 'chat') renderTalk();
+  }
+}
+async function rsMic(i) {
+  const t = talk, m = t.msgs[i];
+  if (!m || !m.correction) return;
+  if (t.status === 'recording' && m.rs && m.rs.rec) { if (t.rec) t.rec.stop(); return; }
+  if (t.status !== 'idle') return;
+  m.rs = m.rs || {};
+  m.rs.result = null;
+  try {
+    unlockAudio();
+    t.hints = null;
+    t.rec = await startRecorder(30, (s, lv, peak) => { const el = $('#status'); if (el) el.textContent = `녹음 중 ${s.toFixed(0)}초 – 끝나면 완료를 누르세요`; updateLevel(lv, peak, s); });
+    m.rs.rec = true;
+    talkSetStatus('recording');
+    const { blob, durationSec, peak } = await t.rec.done;
+    t.rec = null; m.rs.rec = false;
+    if (durationSec < 0.8) { toast('너무 짧아요. 다시 말해 주세요.'); talkSetStatus('idle'); return; }
+    if (peak != null && peak < SILENT) { toast('녹음에 소리가 거의 안 잡혔어요. 마이크를 확인하고 다시 말해 주세요.'); talkSetStatus('idle'); return; }
+    m.rs.busy = true;
+    talkSetStatus('thinking');
+    const tr = await transcribe(blob, '');
+    if (!tr.speech_detected) { toast('목소리가 잘 안 들렸어요. 다시 말해 주세요.'); m.rs.busy = false; talkSetStatus('idle'); return; }
+    m.rs.result = compareSpeech(m.correction.better, tr.transcript);
+    m.rs.busy = false;
+  } catch (e) { toast(e.message); t.rec = null; m.rs.rec = false; m.rs.busy = false; }
+  persistTalk();
+  talkSetStatus('idle');
 }
 async function talkAsk(i, question) {
   const m = talk.msgs[i];
@@ -1092,6 +1173,10 @@ document.addEventListener('click', (e) => {
     case 'hint': talkHint(); break;
     case 'hintClose': talk.hints = null; renderTalk(); break;
     case 'typeToggle': talk.typing = !talk.typing; renderTalk(); if (talk.typing) setTimeout(() => { const i = $('#txt'); if (i) i.focus(); }, 30); break;
+    case 'rsOpen': rsOpen(+d.i); break;
+    case 'rsMic': rsMic(+d.i); break;
+    case 'rsPeek': { const m = talk.msgs[+d.i]; if (m && m.rs) { m.rs.peek = true; renderTalk(); } break; }
+    case 'rsClose': { const m = talk.msgs[+d.i]; if (m && m.rs) { m.rs.open = false; renderTalk(); } break; }
     case 'askToggle': { const m = talk.msgs[+d.i]; if (m) { m.askOpen = true; renderTalk(); const f = document.querySelector(`.askForm[data-i="${d.i}"] input`); if (f) f.focus(); } break; }
     case 'savePhrase': addPhrases([{ en: d.en, ko: d.ko }]); el.textContent = '저장됨'; el.disabled = true; el.removeAttribute('data-act'); toast('노트에 저장했어요'); break;
     case 'convOpen': talkResume(d.id, false); break;
